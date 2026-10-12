@@ -1,0 +1,9 @@
+export { LoginPage } from './pages/LoginPage.jsx';
+export { RegisterPage } from './pages/RegisterPage.jsx';
+export { ForgotPasswordPage } from './pages/ForgotPasswordPage.jsx';
+export { ResetPasswordPage } from './pages/ResetPasswordPage.jsx';
+export { VerifyEmailPage } from './pages/VerifyEmailPage.jsx';
+export { SessionManagementPage } from './pages/SessionManagementPage.jsx';
+export { AuthGuard } from './components/AuthGuard.jsx';
+export { RoleGuard } from './components/RoleGuard.jsx';
+export { useAuth } from './hooks/useAuth.js';
