@@ -9,6 +9,9 @@
     "db:migrate:auth": "node src/scripts/applyAuthMigrations.js",
     "db:migrate:inventory": "node src/scripts/applyInventoryMigrations.js",
     "db:migrate:cart-wishlist": "node src/scripts/applyCartWishlistMigrations.js",
+    "db:migrate:checkout-payments": "node src/scripts/applyCheckoutPaymentsMigrations.js",
+    "db:migrate:orders-shipping": "node src/scripts/applyOrdersShippingMigrations.js",
+    "db:migrate:admin-dashboard": "node src/scripts/applyAdminDashboardMigrations.js",
     "test": "node --test"
   },
   "dependencies": {

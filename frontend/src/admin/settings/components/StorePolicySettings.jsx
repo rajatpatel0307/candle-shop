@@ -1,0 +1,1 @@
+export function StorePolicySettings() { return <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold">Policies</h2><p className="mt-2 text-sm text-stone-600">Operational policy settings belong here; secrets stay in environment variables.</p></section>; }

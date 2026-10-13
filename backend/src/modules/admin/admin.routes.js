@@ -2,10 +2,52 @@ import { Router } from 'express';
 import { AppError } from '../../common/errors/AppError.js';
 import { databaseSchemaError, databaseUnavailableError, isDatabaseConnectionError, isDatabaseSchemaError } from '../../common/errors/databaseErrors.js';
 import { asyncHandler } from '../../common/middleware/asyncHandler.js';
+import { authenticate } from '../auth/auth.middleware.js';
+import {
+  auditLog,
+  auditLogs,
+  dashboardLowStock,
+  dashboardOrders,
+  dashboardRecentActivity,
+  dashboardRecentOrders,
+  dashboardRevenue,
+  dashboardSales,
+  dashboardSummary,
+  dashboardTopProducts,
+  getSetting,
+  listSettings,
+  overview,
+  putSetting,
+  putSettings,
+  report,
+} from './admin.controller.js';
+import { requireAdminAccess, requireAdminOnly } from './admin.policy.js';
 import { getResource, resources } from './resource.config.js';
 import { createResource, deleteResource, getResourceById, listResources, updateResource } from './resource.repository.js';
 
 const router = Router();
+
+router.use(authenticate, requireAdminAccess);
+
+router.get('/dashboard/summary', asyncHandler(dashboardSummary));
+router.get('/dashboard/sales', asyncHandler(dashboardSales));
+router.get('/dashboard/revenue', asyncHandler(dashboardRevenue));
+router.get('/dashboard/orders', asyncHandler(dashboardOrders));
+router.get('/dashboard/top-products', asyncHandler(dashboardTopProducts));
+router.get('/dashboard/low-stock', asyncHandler(dashboardLowStock));
+router.get('/dashboard/recent-orders', asyncHandler(dashboardRecentOrders));
+router.get('/dashboard/recent-activity', asyncHandler(dashboardRecentActivity));
+router.get('/overview/products', asyncHandler(overview));
+router.get('/overview/customers', asyncHandler(overview));
+router.get('/overview/orders', asyncHandler(overview));
+router.get('/overview/inventory', asyncHandler(overview));
+router.get('/reports/:type', asyncHandler(report));
+router.get('/audit-logs', asyncHandler(auditLogs));
+router.get('/audit-logs/:id', asyncHandler(auditLog));
+router.get('/settings', asyncHandler(listSettings));
+router.put('/settings', requireAdminOnly, asyncHandler(putSettings));
+router.get('/settings/:key', asyncHandler(getSetting));
+router.put('/settings/:key', requireAdminOnly, asyncHandler(putSetting));
 
 function resolveResource(req) {
   const resource = getResource(req.params.resource);

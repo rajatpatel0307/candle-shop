@@ -29,6 +29,9 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().default('Candle Commerce <no-reply@localhost>'),
   FRONTEND_URL: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.string().default('info'),
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 }).superRefine((value, ctx) => {
   if (value.DB_DRIVER === 'tedious' && (!value.DB_USER || !value.DB_PASSWORD)) {
     ctx.addIssue({

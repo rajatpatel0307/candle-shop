@@ -1,0 +1,3 @@
+import { Link } from 'react-router-dom';
+import { ProductStatusControl } from './ProductStatusControl.jsx';
+export function AdminProductTable({ products = [] }) { return <section className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-stone-100"><tr><th className="px-4 py-3">Product</th><th>Slug</th><th>Status</th><th>Featured</th></tr></thead><tbody>{products.map((p) => <tr key={p.ProductId} className="border-t"><td className="px-4 py-3 font-semibold"><Link to={`/admin/products`}>{p.ProductName}</Link></td><td>{p.Slug}</td><td><ProductStatusControl status={p.ProductStatus} /></td><td>{String(p.IsFeatured ?? '')}</td></tr>)}</tbody></table></section>; }

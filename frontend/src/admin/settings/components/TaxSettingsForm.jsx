@@ -1,0 +1,1 @@
+export function TaxSettingsForm() { return <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold">Tax</h2><p className="mt-2 text-sm text-stone-600">Tax settings are stored as validated store settings and consumed by checkout pricing when configured.</p></section>; }

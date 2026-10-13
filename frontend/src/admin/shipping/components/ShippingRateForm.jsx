@@ -1,0 +1,2 @@
+import { useState } from 'react';
+export function ShippingRateForm({ onSubmit, pending }) { const [form, setForm] = useState({ BaseFee: 99, IsActive: true }); return <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold">Shipping rate</h2><input className="input mt-3" type="number" value={form.BaseFee} onChange={(e) => setForm({ ...form, BaseFee: Number(e.target.value) })} /><button className="btn-primary mt-3" disabled={pending} onClick={() => onSubmit(form)}>Create</button></section>; }

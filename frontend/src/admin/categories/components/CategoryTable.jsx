@@ -1,0 +1,1 @@
+export function CategoryTable({ rows = [] }) { return <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">{rows.map((r) => <div key={r.CategoryId} className="flex justify-between border-b py-2 text-sm"><strong>{r.CategoryName}</strong><span>{r.Slug}</span><span>{String(r.IsActive)}</span></div>)}</section>; }

@@ -1,0 +1,1 @@
+export function ReportFilters({ type, onType }) { return <select className="input max-w-64" value={type} onChange={(e) => onType(e.target.value)}>{['sales', 'revenue', 'orders', 'products', 'inventory', 'refunds'].map((x) => <option key={x}>{x}</option>)}</select>; }

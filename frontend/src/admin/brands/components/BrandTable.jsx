@@ -1,0 +1,1 @@
+export function BrandTable({ rows = [] }) { return <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">{rows.map((r) => <div key={r.BrandId} className="flex justify-between border-b py-2 text-sm"><strong>{r.BrandName}</strong><span>{r.Slug}</span><span>{String(r.IsActive)}</span></div>)}</section>; }

@@ -1,0 +1,1 @@
+export function ShippingRateTable({ rows = [] }) { return <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">{rows.map((r) => <div key={r.ShippingRateId} className="flex justify-between border-b py-2 text-sm"><span>{r.BaseFee}</span><span>{r.FreeShippingThreshold}</span><span>{String(r.IsActive)}</span></div>)}</section>; }

@@ -1,0 +1,2 @@
+import { CouponStatusControl } from './CouponStatusControl.jsx';
+export function CouponTable({ rows = [] }) { return <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">{rows.map((r) => <div key={r.CouponId} className="flex justify-between border-b py-2 text-sm"><strong>{r.CouponCode}</strong><span>{r.DiscountType} {r.DiscountValue}</span><CouponStatusControl active={r.IsActive} /></div>)}</section>; }

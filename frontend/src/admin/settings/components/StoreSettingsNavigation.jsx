@@ -1,0 +1,1 @@
+export function StoreSettingsNavigation() { return <nav className="flex flex-wrap gap-2 text-sm"><span className="rounded-md border px-3 py-2">General</span><span className="rounded-md border px-3 py-2">Tax</span><span className="rounded-md border px-3 py-2">Policies</span></nav>; }

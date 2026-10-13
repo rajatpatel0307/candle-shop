@@ -14,6 +14,22 @@ import {
   SessionManagementPage,
   VerifyEmailPage,
 } from './features/auth/index.js';
+import { CartPage, useCartMutations } from './features/cart/index.js';
+import { CheckoutPage, OrderConfirmationPage, PaymentResultPage } from './features/checkout/index.js';
+import { OrderDetailsPage, OrderHistoryPage, OrderTrackingPage } from './features/orders/index.js';
+import { WishlistButton, WishlistPage } from './features/wishlist/index.js';
+import { AdminOrderDetailsPage, AdminOrdersPage, AdminRefundsPage, AdminShipmentsPage } from './admin/orders/index.js';
+import { AdminDashboardPage } from './admin/dashboard/index.js';
+import { AdminProductsPage } from './admin/products/index.js';
+import { AdminCategoriesPage } from './admin/categories/index.js';
+import { AdminBrandsPage } from './admin/brands/index.js';
+import { AdminFragrancesPage } from './admin/fragrances/index.js';
+import { AdminCustomersPage, AdminCustomerDetailsPage } from './admin/customers/index.js';
+import { AdminCouponsPage } from './admin/coupons/index.js';
+import { AdminShippingSettingsPage } from './admin/shipping/index.js';
+import { AdminSettingsPage } from './admin/settings/index.js';
+import { AdminReportsPage } from './admin/reports/index.js';
+import { AdminAuditLogsPage } from './admin/audit-logs/index.js';
 import {
   InventoryDashboard,
   InventoryDetailsPage,
@@ -37,12 +53,13 @@ const fallbackCategories = [
 ];
 
 const adminGroups = [
+  ['Dashboard', ['dashboard', 'reports', 'audit-logs', 'settings']],
   ['Catalog', ['categories', 'brands', 'fragrances', 'products', 'product-variants', 'product-images', 'product-specifications', 'product-tags', 'product-tag-mappings']],
   ['Stock', ['inventory-dashboard', 'inventory', 'inventory-movements', 'inventory-reservations']],
-  ['Orders', ['carts', 'cart-items', 'checkout-sessions', 'orders', 'order-items', 'order-addresses', 'order-status-history']],
-  ['Payment', ['payments', 'payment-attempts', 'payment-webhook-events', 'refunds', 'coupons', 'coupon-usages', 'product-discounts']],
-  ['Customers', ['users', 'roles', 'user-roles', 'user-addresses', 'wishlists', 'wishlist-items', 'notifications']],
-  ['Content', ['banners', 'pages', 'product-reviews', 'review-images', 'contact-messages', 'support-tickets', 'shipping-methods', 'shipping-zones', 'shipping-rates', 'shipments', 'shipment-tracking-events', 'store-settings', 'audit-logs']],
+  ['Orders', ['orders', 'shipments', 'refunds', 'carts', 'cart-items', 'checkout-sessions', 'order-items', 'order-addresses', 'order-status-history']],
+  ['Payment', ['payments', 'payment-attempts', 'payment-webhook-events', 'coupons', 'coupon-usages', 'product-discounts']],
+  ['Customers', ['customers', 'users', 'roles', 'user-roles', 'user-addresses', 'wishlists', 'wishlist-items', 'notifications']],
+  ['Content', ['shipping-settings', 'banners', 'pages', 'product-reviews', 'review-images', 'contact-messages', 'support-tickets', 'shipping-methods', 'shipping-zones', 'shipping-rates', 'store-settings']],
 ];
 
 function currency(value) {
@@ -195,8 +212,15 @@ function ShopPage() {
 
 function ProductPage() {
   const { slug } = useParams();
+  const cartActions = useCartMutations();
   const fallback = fallbackProducts.find((product) => product.Slug === slug) || fallbackProducts[0];
   const { data: product, isError } = useApiQuery(['product', slug], endpoints.product(slug), { ...fallback, variants: [], images: [{ ImageUrl: fallback.ImageUrl, AltText: fallback.ProductName }], specifications: [], reviews: [] });
+  const firstVariant = product?.variants?.[0];
+  const addPayload = {
+    productId: product?.ProductId,
+    ...(firstVariant?.ProductVariantId ? { productVariantId: firstVariant.ProductVariantId } : {}),
+    quantity: 1,
+  };
 
   return (
     <Shell>
@@ -210,9 +234,13 @@ function ProductPage() {
           <p className="mt-4 text-lg leading-8 text-stone-600">{product?.ShortDescription || product?.Description}</p>
           <p className="mt-6 text-2xl font-semibold">{currency(product?.variants?.[0]?.SellingPrice || product?.SellingPrice)}</p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/cart" className="btn-primary">Add to cart</Link>
-            <Link to="/wishlist" className="btn-secondary"><Heart className="h-4 w-4" /> Wishlist</Link>
+            <button className="btn-primary" disabled={cartActions.add.isPending || !product?.ProductId} onClick={() => cartActions.add.mutate(addPayload)}>
+              Add to cart
+            </button>
+            <WishlistButton productId={product?.ProductId} productVariantId={firstVariant?.ProductVariantId} />
           </div>
+          {cartActions.add.isError && <p className="mt-3 text-sm text-red-700">{cartActions.add.error?.response?.data?.error?.message || 'Could not add to cart.'}</p>}
+          {cartActions.add.isSuccess && <p className="mt-3 text-sm text-green-700">Added to cart.</p>}
           {isError && <p className="mt-4 text-sm text-stone-600">Sample detail shown until this product exists in MSSQL.</p>}
           <div className="mt-8 grid gap-3">
             {(product?.variants || []).map((variant) => (
@@ -388,11 +416,32 @@ function AppRoutes() {
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/sessions" element={<AuthGuard><SessionManagementPage /></AuthGuard>} />
       <Route path="/account" element={<AuthGuard><SimplePage title="Account"><p>Profile, addresses, wishlist, notifications, and support tickets are backed by Users, UserAddresses, Wishlists, Notifications, and SupportTickets.</p><Link className="mt-4 inline-block text-[#8d5132] underline" to="/sessions">Manage sessions</Link></SimplePage></AuthGuard>} />
-      <Route path="/cart" element={<SimplePage title="Cart"><p>Cart and item records map to Carts and CartItems. Add product selection logic when payment and shipping providers are configured.</p></SimplePage>} />
-      <Route path="/checkout" element={<SimplePage title="Checkout"><p>Checkout sessions, order creation, order addresses, inventory reservations, payments, and shipping rates are represented in the backend baseline.</p></SimplePage>} />
-      <Route path="/orders" element={<SimplePage title="Orders"><p>Customer order history maps to Orders, OrderItems, Shipments, and ShipmentTrackingEvents.</p></SimplePage>} />
-      <Route path="/wishlist" element={<SimplePage title="Wishlist"><p>Wishlist and WishlistItems are available in the admin data layer.</p></SimplePage>} />
-      <Route path="/admin" element={<RoleGuard roles={['ADMIN']}><AdminPage /></RoleGuard>} />
+      <Route path="/cart" element={<AuthGuard><CartPage /></AuthGuard>} />
+      <Route path="/checkout" element={<AuthGuard><CheckoutPage /></AuthGuard>} />
+      <Route path="/payments/result" element={<AuthGuard><PaymentResultPage /></AuthGuard>} />
+      <Route path="/orders/:orderId/confirmation" element={<AuthGuard><OrderConfirmationPage /></AuthGuard>} />
+      <Route path="/orders" element={<AuthGuard><OrderHistoryPage /></AuthGuard>} />
+      <Route path="/orders/:orderId" element={<AuthGuard><OrderDetailsPage /></AuthGuard>} />
+      <Route path="/orders/:orderId/tracking" element={<AuthGuard><OrderTrackingPage /></AuthGuard>} />
+      <Route path="/wishlist" element={<AuthGuard><WishlistPage /></AuthGuard>} />
+      <Route path="/admin" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminDashboardPage /></RoleGuard>} />
+      <Route path="/admin/dashboard" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminDashboardPage /></RoleGuard>} />
+      <Route path="/admin/products" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminProductsPage /></RoleGuard>} />
+      <Route path="/admin/categories" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminCategoriesPage /></RoleGuard>} />
+      <Route path="/admin/brands" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminBrandsPage /></RoleGuard>} />
+      <Route path="/admin/fragrances" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminFragrancesPage /></RoleGuard>} />
+      <Route path="/admin/customers" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminCustomersPage /></RoleGuard>} />
+      <Route path="/admin/customers/:customerId" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminCustomerDetailsPage /></RoleGuard>} />
+      <Route path="/admin/coupons" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminCouponsPage /></RoleGuard>} />
+      <Route path="/admin/shipping-settings" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminShippingSettingsPage /></RoleGuard>} />
+      <Route path="/admin/settings" element={<RoleGuard roles={['ADMIN']}><AdminSettingsPage /></RoleGuard>} />
+      <Route path="/admin/reports" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminReportsPage /></RoleGuard>} />
+      <Route path="/admin/audit-logs" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminAuditLogsPage /></RoleGuard>} />
+      <Route path="/admin/resources" element={<RoleGuard roles={['ADMIN']}><AdminPage /></RoleGuard>} />
+      <Route path="/admin/orders" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminOrdersPage /></RoleGuard>} />
+      <Route path="/admin/orders/:orderId" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminOrderDetailsPage /></RoleGuard>} />
+      <Route path="/admin/shipments" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminShipmentsPage /></RoleGuard>} />
+      <Route path="/admin/refunds" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminRefundsPage /></RoleGuard>} />
       <Route path="/admin/inventory-dashboard" element={<RoleGuard roles={['ADMIN']}><InventoryDashboard /></RoleGuard>} />
       <Route path="/admin/inventory" element={<RoleGuard roles={['ADMIN']}><InventoryListPage /></RoleGuard>} />
       <Route path="/admin/inventory/:productVariantId" element={<RoleGuard roles={['ADMIN']}><InventoryDetailsPage /></RoleGuard>} />

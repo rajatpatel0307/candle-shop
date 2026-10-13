@@ -26,7 +26,14 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({
+  limit: '1mb',
+  verify: (req, res, buffer) => {
+    if (req.originalUrl?.includes('/payments/webhooks/')) {
+      req.rawBody = Buffer.from(buffer);
+    }
+  },
+}));
 app.use('/api/v1', generalApiLimiter);
 app.use('/api/v1', routes);
 app.use(notFound);
