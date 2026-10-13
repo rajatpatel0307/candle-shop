@@ -14,6 +14,8 @@ import {
   dashboardSales,
   dashboardSummary,
   dashboardTopProducts,
+  customerDetails,
+  customers,
   getSetting,
   listSettings,
   overview,
@@ -44,6 +46,8 @@ router.get('/overview/inventory', asyncHandler(overview));
 router.get('/reports/:type', asyncHandler(report));
 router.get('/audit-logs', asyncHandler(auditLogs));
 router.get('/audit-logs/:id', asyncHandler(auditLog));
+router.get('/customers', asyncHandler(customers));
+router.get('/customers/:customerId', asyncHandler(customerDetails));
 router.get('/settings', asyncHandler(listSettings));
 router.put('/settings', requireAdminOnly, asyncHandler(putSettings));
 router.get('/settings/:key', asyncHandler(getSetting));

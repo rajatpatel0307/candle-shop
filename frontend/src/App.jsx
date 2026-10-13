@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
-import { BrowserRouter, Link, NavLink, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Boxes, Flame, Heart, LayoutDashboard, Package, Search, ShoppingBag, Sparkles, Trash2, UserRound } from 'lucide-react';
+import { ArrowRight, Bell, Boxes, ClipboardList, FileText, Flame, Headphones, Heart, LayoutDashboard, LogOut, Mail, Menu, MessageSquare, Package, Search, Settings, ShoppingBag, Sparkles, Trash2, Truck, UserRound, Users, Warehouse, X } from 'lucide-react';
 import { apiClient } from './services/apiClient.js';
 import { endpoints } from './services/endpoints.js';
 import {
@@ -12,8 +12,10 @@ import {
   ResetPasswordPage,
   RoleGuard,
   SessionManagementPage,
+  useAuth,
   VerifyEmailPage,
 } from './features/auth/index.js';
+import { getRoleHomePath, hasAnyRole } from './features/auth/utils/authRouting.js';
 import { CartPage, useCartMutations } from './features/cart/index.js';
 import { CheckoutPage, OrderConfirmationPage, PaymentResultPage } from './features/checkout/index.js';
 import { OrderDetailsPage, OrderHistoryPage, OrderTrackingPage } from './features/orders/index.js';
@@ -30,6 +32,19 @@ import { AdminShippingSettingsPage } from './admin/shipping/index.js';
 import { AdminSettingsPage } from './admin/settings/index.js';
 import { AdminReportsPage } from './admin/reports/index.js';
 import { AdminAuditLogsPage } from './admin/audit-logs/index.js';
+import { MyReviews } from './features/reviews/index.js';
+import { RatingSummary, ReviewForm, ReviewList } from './features/reviews/index.js';
+import { reviewsApi } from './features/reviews/reviews.api.js';
+import { NotificationBell, NotificationsPage } from './features/notifications/index.js';
+import { ContactUs } from './features/contact/index.js';
+import { MyTickets, TicketDetails } from './features/support/index.js';
+import { ManageReviews } from './admin/reviews/index.js';
+import { ManageNotifications } from './admin/notifications/index.js';
+import { ManageContactMessages } from './admin/contact/index.js';
+import { AdminTicketDetails, ManageTickets } from './admin/support/index.js';
+import { HomePage as DynamicHomePage } from './features/home/index.js';
+import { AboutUs, ContentPage, PrivacyPolicy, TermsAndConditions } from './features/content/index.js';
+import { EditContentPage, ManageBanners, ManageContentPages, ManageFeaturedProducts, ManagePromotions, ManageSeo } from './admin/content/index.js';
 import {
   InventoryDashboard,
   InventoryDetailsPage,
@@ -59,7 +74,8 @@ const adminGroups = [
   ['Orders', ['orders', 'shipments', 'refunds', 'carts', 'cart-items', 'checkout-sessions', 'order-items', 'order-addresses', 'order-status-history']],
   ['Payment', ['payments', 'payment-attempts', 'payment-webhook-events', 'coupons', 'coupon-usages', 'product-discounts']],
   ['Customers', ['customers', 'users', 'roles', 'user-roles', 'user-addresses', 'wishlists', 'wishlist-items', 'notifications']],
-  ['Content', ['shipping-settings', 'banners', 'pages', 'product-reviews', 'review-images', 'contact-messages', 'support-tickets', 'shipping-methods', 'shipping-zones', 'shipping-rates', 'store-settings']],
+  ['Engagement', ['reviews', 'notifications', 'contact-messages', 'support-tickets']],
+  ['Content', ['content/banners', 'content/promotions', 'content/pages', 'content/featured-products', 'content/seo', 'shipping-settings', 'store-settings']],
 ];
 
 function currency(value) {
@@ -76,30 +92,385 @@ function useApiQuery(key, url, fallback) {
   });
 }
 
+const primaryNav = [
+  { to: '/shop', label: 'Shop' },
+  { to: '/categories', label: 'Collections' },
+  { to: '/about', label: 'Our story' },
+  { to: '/contact', label: 'Contact' },
+];
+
+const footerSections = [
+  {
+    title: 'Shop',
+    links: [
+      { to: '/shop', label: 'All candles' },
+      { to: '/categories', label: 'Collections' },
+      { to: '/wishlist', label: 'Wishlist' },
+      { to: '/cart', label: 'Cart' },
+    ],
+  },
+  {
+    title: 'Account',
+    links: [
+      { to: '/account', label: 'Account' },
+      { to: '/orders', label: 'Orders' },
+      { to: '/notifications', label: 'Notifications' },
+      { to: '/support/tickets', label: 'Support tickets' },
+    ],
+  },
+  {
+    title: 'Studio',
+    links: [
+      { to: '/about', label: 'About us' },
+      { to: '/contact', label: 'Contact us' },
+      { to: '/terms', label: 'Terms' },
+      { to: '/privacy', label: 'Privacy' },
+    ],
+  },
+];
+
+function navClass({ isActive }) {
+  return `rounded-md px-2 py-1 transition ${isActive ? 'bg-white text-[#2f2722] shadow-sm' : 'text-stone-700 hover:bg-white/70 hover:text-[#2f2722]'}`;
+}
+
+const adminNavSections = [
+  {
+    title: 'Overview',
+    items: [
+      { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/reports', label: 'Reports', icon: FileText, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/audit-logs', label: 'Audit logs', icon: ClipboardList, roles: ['ADMIN', 'SUPPORT'] },
+    ],
+  },
+  {
+    title: 'Catalog',
+    items: [
+      { to: '/admin/products', label: 'Products', icon: Package, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/categories', label: 'Categories', icon: Boxes, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/brands', label: 'Brands', icon: Flame, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/fragrances', label: 'Fragrances', icon: Sparkles, roles: ['ADMIN', 'SUPPORT'] },
+    ],
+  },
+  {
+    title: 'Orders',
+    items: [
+      { to: '/admin/orders', label: 'Orders', icon: ShoppingBag, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/shipments', label: 'Shipments', icon: Truck, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/refunds', label: 'Refunds', icon: ClipboardList, roles: ['ADMIN', 'SUPPORT'] },
+    ],
+  },
+  {
+    title: 'Customers',
+    items: [
+      { to: '/admin/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/reviews', label: 'Reviews', icon: MessageSquare, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/contact-messages', label: 'Messages', icon: Mail, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/support-tickets', label: 'Tickets', icon: Headphones, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/notifications', label: 'Notifications', icon: Bell, roles: ['ADMIN', 'SUPPORT'] },
+    ],
+  },
+  {
+    title: 'Content',
+    items: [
+      { to: '/admin/content/banners', label: 'Banners', icon: FileText, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/content/promotions', label: 'Promotions', icon: Sparkles, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/content/pages', label: 'Pages', icon: FileText, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/content/featured-products', label: 'Featured', icon: Package, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/content/seo', label: 'SEO', icon: Search, roles: ['ADMIN', 'SUPPORT'] },
+      { to: '/admin/shipping-settings', label: 'Shipping settings', icon: Truck, roles: ['ADMIN', 'SUPPORT'] },
+    ],
+  },
+  {
+    title: 'Admin only',
+    items: [
+      { to: '/admin/inventory-dashboard', label: 'Inventory', icon: Warehouse, roles: ['ADMIN'] },
+      { to: '/admin/settings', label: 'Settings', icon: Settings, roles: ['ADMIN'] },
+      { to: '/admin/resources', label: 'Resources', icon: LayoutDashboard, roles: ['ADMIN'] },
+    ],
+  },
+];
+
+function AdminSidebar({ onNavigate }) {
+  const { user } = useAuth();
+
+  return (
+    <aside className="border-stone-200 bg-[#2f2722] text-stone-100 lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:overflow-y-auto lg:border-r">
+      <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
+        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[#f0c28d] text-[#2f2722]"><Flame className="h-5 w-5" /></span>
+        <div>
+          <p className="font-semibold">Admin Panel</p>
+          <p className="text-xs text-stone-300">Candle Studio</p>
+        </div>
+      </div>
+      <nav className="grid gap-5 px-3 py-4 text-sm" aria-label="Admin navigation">
+        {adminNavSections.map((section) => {
+          const items = section.items.filter((item) => hasAnyRole(user, item.roles));
+          if (items.length === 0) return null;
+
+          return (
+            <section key={section.title}>
+              <h2 className="px-3 text-xs font-semibold uppercase tracking-wide text-stone-400">{section.title}</h2>
+              <div className="mt-2 grid gap-1">
+                {items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 font-medium transition ${isActive ? 'bg-white text-[#2f2722]' : 'text-stone-200 hover:bg-white/10 hover:text-white'}`}
+                      onClick={onNavigate}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}
+
+function getAdminPageTitle(pathname) {
+  if (pathname === '/admin/profile') return 'Profile';
+
+  const items = adminNavSections.flatMap((section) => section.items);
+  const match = items
+    .filter((item) => pathname === item.to || pathname.startsWith(`${item.to}/`))
+    .sort((a, b) => b.to.length - a.to.length)[0];
+
+  return match?.label || 'Admin';
+}
+
+function AdminHeader() {
+  const location = useLocation();
+  const { user } = useAuth();
+  const title = getAdminPageTitle(location.pathname);
+  const roleLabel = hasAnyRole(user, ['ADMIN']) ? 'Administrator' : 'Support';
+
+  return (
+    <header className="z-30 border-b border-stone-200 bg-[#f7f2ea]/95 px-4 py-3 backdrop-blur sm:px-6 lg:sticky lg:top-0">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase text-[#8d5132]">Admin workspace</p>
+          <h1 className="text-2xl font-semibold text-[#2f2722]">{title}</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hidden rounded-full bg-white px-3 py-1 text-xs font-semibold text-stone-600 shadow-sm sm:inline-flex">{roleLabel}</span>
+          <NotificationBell />
+          <AccountMenu />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function AdminLayout({ children }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-[#f7f2ea] text-[#2f2722] lg:grid lg:grid-cols-[18rem_1fr]">
+      <div className="hidden lg:block">
+        <AdminSidebar />
+      </div>
+      <div className="lg:hidden">
+        <div className="sticky top-0 z-40 flex items-center justify-between border-b border-stone-200 bg-[#f7f2ea] px-4 py-3">
+          <Link to="/admin/dashboard" className="flex items-center gap-2 font-semibold">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#2f2722] text-white"><Flame className="h-5 w-5 text-[#f0c28d]" /></span>
+            Admin Panel
+          </Link>
+          <button className="icon-btn" type="button" aria-label={mobileOpen ? 'Close admin menu' : 'Open admin menu'} aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>
+            {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
+        </div>
+        {mobileOpen && <AdminSidebar onNavigate={() => setMobileOpen(false)} />}
+      </div>
+      <div className="min-w-0">
+        <AdminHeader />
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function AdminRoute({ roles = ['ADMIN', 'SUPPORT'], children }) {
+  return (
+    <RoleGuard roles={roles}>
+      <AdminLayout>{children}</AdminLayout>
+    </RoleGuard>
+  );
+}
+
+function StaffRedirectGuard({ children }) {
+  const { user, status, loadCurrentUser } = useAuth();
+
+  useEffect(() => {
+    if (status === 'idle') loadCurrentUser();
+  }, [status]);
+
+  if (status === 'idle' || status === 'loading') return <div className="p-8 text-stone-600">Checking session...</div>;
+  if (hasAnyRole(user, ['ADMIN', 'SUPPORT'])) return <Navigate to="/admin/dashboard" replace />;
+  return children;
+}
+
+function CustomerRoute({ children }) {
+  const { user } = useAuth();
+
+  return (
+    <AuthGuard>
+      {hasAnyRole(user, ['ADMIN', 'SUPPORT']) ? <Navigate to="/admin/dashboard" replace /> : children}
+    </AuthGuard>
+  );
+}
+
+function AccountMenu({ onNavigate }) {
+  const navigate = useNavigate();
+  const menuRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const { user, status, loadCurrentUser, logout } = useAuth();
+  const isAuthenticated = Boolean(user);
+  const isStaff = hasAnyRole(user, ['ADMIN', 'SUPPORT']);
+
+  useEffect(() => {
+    if (status === 'idle') loadCurrentUser();
+  }, [status]);
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (!menuRef.current?.contains(event.target)) setOpen(false);
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
+
+  async function handleLogout() {
+    await logout();
+    setOpen(false);
+    onNavigate?.();
+    navigate('/login', { replace: true });
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Link to="/login" className="icon-btn" aria-label="Sign in" onClick={onNavigate}>
+        <UserRound className="h-4 w-4" />
+      </Link>
+    );
+  }
+
+  return (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label="Account menu"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <UserRound className="h-4 w-4" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-md border border-stone-200 bg-white py-2 text-sm shadow-lg" role="menu">
+          <div className="border-b border-stone-100 px-4 py-2">
+            <p className="truncate font-semibold">{user.firstName || 'Account'}</p>
+            <p className="truncate text-xs text-stone-500">{user.email}</p>
+          </div>
+          <Link
+            to={isStaff ? '/admin/profile' : getRoleHomePath(user)}
+            className="flex items-center gap-2 px-4 py-2 text-stone-700 transition hover:bg-stone-50 hover:text-[#8d5132]"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onNavigate?.();
+            }}
+          >
+            <UserRound className="h-4 w-4" />
+            {isStaff ? 'Profile' : 'Account'}
+          </Link>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-4 py-2 text-left font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            role="menuitem"
+            disabled={status === 'loading'}
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Shell({ children }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-[#f7f2ea] text-[#2f2722]">
-      <header className="sticky top-0 z-20 border-b border-stone-200/80 bg-[#f7f2ea]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2 text-lg font-semibold">
-            <Flame className="h-5 w-5 text-[#b56b45]" /> Candle Studio
+      <header className="sticky top-0 z-30 border-b border-stone-200/80 bg-[#f7f2ea]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <Link to="/" className="flex min-w-fit items-center gap-2 text-lg font-semibold" onClick={() => setMenuOpen(false)}>
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#2f2722] text-white"><Flame className="h-5 w-5 text-[#f0c28d]" /></span>
+            <span>Candle Studio</span>
           </Link>
-          <nav className="hidden items-center gap-5 text-sm font-medium text-stone-700 md:flex">
-            <NavLink to="/shop">Shop</NavLink>
-            <NavLink to="/categories">Categories</NavLink>
-            <NavLink to="/wishlist">Wishlist</NavLink>
-            <NavLink to="/orders">Orders</NavLink>
-            <NavLink to="/admin">Admin</NavLink>
+          <nav className="hidden items-center gap-1 text-sm font-semibold md:flex" aria-label="Primary navigation">
+            {primaryNav.map((item) => <NavLink key={item.to} to={item.to} className={navClass}>{item.label}</NavLink>)}
           </nav>
           <div className="flex items-center gap-2">
-            <Link to="/account" className="icon-btn" aria-label="Account"><UserRound className="h-4 w-4" /></Link>
+            <NotificationBell />
+            <Link to="/wishlist" className="icon-btn hidden sm:inline-flex" aria-label="Wishlist"><Heart className="h-4 w-4" /></Link>
+            <AccountMenu onNavigate={() => setMenuOpen(false)} />
             <Link to="/cart" className="icon-btn" aria-label="Cart"><ShoppingBag className="h-4 w-4" /></Link>
+            <button className="icon-btn md:hidden" type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
+              {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </button>
           </div>
         </div>
+        {menuOpen && (
+          <nav className="border-t border-stone-200 bg-[#f7f2ea] px-4 py-3 text-sm font-semibold md:hidden" aria-label="Mobile navigation">
+            <div className="mx-auto grid max-w-7xl gap-1">
+              {[...primaryNav, { to: '/wishlist', label: 'Wishlist' }, { to: '/orders', label: 'Orders' }, { to: '/support/tickets', label: 'Support' }].map((item) => (
+                <NavLink key={item.to} to={item.to} className={navClass} onClick={() => setMenuOpen(false)}>{item.label}</NavLink>
+              ))}
+            </div>
+          </nav>
+        )}
       </header>
       {children}
-      <footer className="border-t border-stone-200 px-4 py-8 text-center text-sm text-stone-500">
-        Candle e-commerce baseline for React, Vite, Tailwind, Node, Express, and MSSQL.
+      <footer className="border-t border-stone-200 bg-[#efe6d8] px-4 py-10 text-sm text-stone-700 sm:px-6">
+        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.1fr_1.6fr] lg:items-start">
+          <section>
+            <Link to="/" className="flex items-center gap-2 text-lg font-semibold text-[#2f2722]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#2f2722] text-white"><Flame className="h-5 w-5 text-[#f0c28d]" /></span>
+              Candle Studio
+            </Link>
+            <p className="mt-4 max-w-sm leading-6 text-stone-600">Scented candles, gift sets, and home fragrance essentials managed by a full commerce and content dashboard.</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link to="/shop" className="btn-primary px-4 py-2">Shop candles</Link>
+              <Link to="/contact" className="btn-secondary px-4 py-2">Contact support</Link>
+            </div>
+          </section>
+          <div className="grid gap-8 sm:grid-cols-3 lg:justify-items-end">
+            {footerSections.map((section) => (
+              <section key={section.title} className="min-w-32">
+                <h2 className="font-semibold text-[#2f2722]">{section.title}</h2>
+                <ul className="mt-3 grid gap-2.5">
+                  {section.links.map((link) => <li key={link.to}><Link className="text-stone-600 transition hover:text-[#8d5132]" to={link.to}>{link.label}</Link></li>)}
+                </ul>
+              </section>
+            ))}
+          </div>
+        </div>
+        <div className="mx-auto mt-8 flex max-w-7xl flex-col gap-2 border-t border-stone-300 pt-5 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} Candle Studio. All rights reserved.</p>
+          <p>React, Vite, Express, and Microsoft SQL Server storefront.</p>
+        </div>
       </footer>
     </div>
   );
@@ -215,6 +586,9 @@ function ProductPage() {
   const cartActions = useCartMutations();
   const fallback = fallbackProducts.find((product) => product.Slug === slug) || fallbackProducts[0];
   const { data: product, isError } = useApiQuery(['product', slug], endpoints.product(slug), { ...fallback, variants: [], images: [{ ImageUrl: fallback.ImageUrl, AltText: fallback.ProductName }], specifications: [], reviews: [] });
+  const reviewSummary = useQuery({ queryKey: ['review-summary', product?.ProductId], enabled: Boolean(product?.ProductId), retry: false, queryFn: async () => (await reviewsApi.summary(product.ProductId)).data.data.summary });
+  const reviews = useQuery({ queryKey: ['product-reviews', product?.ProductId], enabled: Boolean(product?.ProductId), retry: false, queryFn: async () => (await reviewsApi.list(product.ProductId)).data.data.reviews.items });
+  const reviewMutation = useMutation({ mutationFn: (payload) => reviewsApi.create(product.ProductId, payload), onSuccess: () => { reviewSummary.refetch(); reviews.refetch(); } });
   const firstVariant = product?.variants?.[0];
   const addPayload = {
     productId: product?.ProductId,
@@ -249,6 +623,12 @@ function ProductPage() {
                 <p className="mt-1 text-sm text-stone-600">{variant.FragranceName || variant.SKU}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-8 grid gap-4">
+            <RatingSummary summary={reviewSummary.data} />
+            <ReviewForm pending={reviewMutation.isPending} onSubmit={(payload) => reviewMutation.mutate(payload)} />
+            {reviewMutation.isError && <p className="text-sm text-red-700">{reviewMutation.error?.response?.data?.error?.message || 'Could not submit review.'}</p>}
+            <ReviewList reviews={reviews.data || []} />
           </div>
         </section>
       </main>
@@ -401,55 +781,141 @@ function AdminResourcePage() {
   );
 }
 
+function formatProfileDate(value) {
+  if (!value) return 'Not available';
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
+function AdminProfilePage() {
+  const { user } = useAuth();
+  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Admin user';
+  const accessRoles = (user?.roles || []).filter((role) => ['ADMIN', 'SUPPORT'].includes(String(role).trim().toUpperCase()));
+  const details = [
+    ['User ID', user?.id],
+    ['Email', user?.email],
+    ['Phone', user?.phoneNumber || 'Not added'],
+    ['Account status', user?.accountStatus || 'Unknown'],
+    ['Email verified', user?.isEmailVerified ? 'Yes' : 'No'],
+    ['Last login', formatProfileDate(user?.lastLoginAtUtc)],
+  ];
+
+  return (
+    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <section className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-md bg-[#2f2722] text-2xl font-semibold text-white">
+            {fullName.slice(0, 1).toUpperCase()}
+          </div>
+          <div>
+            <p className="text-sm font-semibold uppercase text-[#8d5132]">Admin profile</p>
+            <h2 className="text-3xl font-semibold">{fullName}</h2>
+            <p className="mt-1 text-stone-600">{user?.email}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-6 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+          <h3 className="text-xl font-semibold">Account details</h3>
+          <dl className="mt-5 grid gap-4">
+            {details.map(([label, value]) => (
+              <div key={label} className="grid gap-1 border-b border-stone-100 pb-3 last:border-0 last:pb-0 sm:grid-cols-[10rem_1fr]">
+                <dt className="text-sm font-semibold text-stone-500">{label}</dt>
+                <dd className="break-words text-sm text-[#2f2722]">{value || 'Not available'}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+          <h3 className="text-xl font-semibold">Roles and access</h3>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {accessRoles.map((role) => (
+              <span key={role} className="rounded-full bg-[#efe6d8] px-3 py-1 text-sm font-semibold text-[#8d5132]">{role}</span>
+            ))}
+            {accessRoles.length === 0 && <span className="text-sm text-stone-600">No admin access role assigned.</span>}
+          </div>
+          <p className="mt-5 text-sm leading-6 text-stone-600">
+            This profile controls access to the admin workspace. Customer-only accounts are visible from Customers and Customer Details, while admin/support accounts stay in admin pages.
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/shop" element={<ShopPage />} />
-      <Route path="/products/:slug" element={<ProductPage />} />
-      <Route path="/categories" element={<CategoriesPage />} />
-      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/" element={<StaffRedirectGuard><Shell><DynamicHomePage /></Shell></StaffRedirectGuard>} />
+      <Route path="/shop" element={<StaffRedirectGuard><ShopPage /></StaffRedirectGuard>} />
+      <Route path="/products/:slug" element={<StaffRedirectGuard><ProductPage /></StaffRedirectGuard>} />
+      <Route path="/categories" element={<StaffRedirectGuard><CategoriesPage /></StaffRedirectGuard>} />
+      <Route path="/about" element={<StaffRedirectGuard><Shell><AboutUs /></Shell></StaffRedirectGuard>} />
+      <Route path="/contact" element={<StaffRedirectGuard><Shell><ContactUs /></Shell></StaffRedirectGuard>} />
+      <Route path="/terms" element={<StaffRedirectGuard><Shell><TermsAndConditions /></Shell></StaffRedirectGuard>} />
+      <Route path="/privacy" element={<StaffRedirectGuard><Shell><PrivacyPolicy /></Shell></StaffRedirectGuard>} />
+      <Route path="/pages/:slug" element={<StaffRedirectGuard><Shell><ContentPage /></Shell></StaffRedirectGuard>} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
-      <Route path="/sessions" element={<AuthGuard><SessionManagementPage /></AuthGuard>} />
-      <Route path="/account" element={<AuthGuard><SimplePage title="Account"><p>Profile, addresses, wishlist, notifications, and support tickets are backed by Users, UserAddresses, Wishlists, Notifications, and SupportTickets.</p><Link className="mt-4 inline-block text-[#8d5132] underline" to="/sessions">Manage sessions</Link></SimplePage></AuthGuard>} />
-      <Route path="/cart" element={<AuthGuard><CartPage /></AuthGuard>} />
-      <Route path="/checkout" element={<AuthGuard><CheckoutPage /></AuthGuard>} />
-      <Route path="/payments/result" element={<AuthGuard><PaymentResultPage /></AuthGuard>} />
-      <Route path="/orders/:orderId/confirmation" element={<AuthGuard><OrderConfirmationPage /></AuthGuard>} />
-      <Route path="/orders" element={<AuthGuard><OrderHistoryPage /></AuthGuard>} />
-      <Route path="/orders/:orderId" element={<AuthGuard><OrderDetailsPage /></AuthGuard>} />
-      <Route path="/orders/:orderId/tracking" element={<AuthGuard><OrderTrackingPage /></AuthGuard>} />
-      <Route path="/wishlist" element={<AuthGuard><WishlistPage /></AuthGuard>} />
-      <Route path="/admin" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminDashboardPage /></RoleGuard>} />
-      <Route path="/admin/dashboard" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminDashboardPage /></RoleGuard>} />
-      <Route path="/admin/products" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminProductsPage /></RoleGuard>} />
-      <Route path="/admin/categories" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminCategoriesPage /></RoleGuard>} />
-      <Route path="/admin/brands" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminBrandsPage /></RoleGuard>} />
-      <Route path="/admin/fragrances" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminFragrancesPage /></RoleGuard>} />
-      <Route path="/admin/customers" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminCustomersPage /></RoleGuard>} />
-      <Route path="/admin/customers/:customerId" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminCustomerDetailsPage /></RoleGuard>} />
-      <Route path="/admin/coupons" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminCouponsPage /></RoleGuard>} />
-      <Route path="/admin/shipping-settings" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminShippingSettingsPage /></RoleGuard>} />
-      <Route path="/admin/settings" element={<RoleGuard roles={['ADMIN']}><AdminSettingsPage /></RoleGuard>} />
-      <Route path="/admin/reports" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminReportsPage /></RoleGuard>} />
-      <Route path="/admin/audit-logs" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminAuditLogsPage /></RoleGuard>} />
-      <Route path="/admin/resources" element={<RoleGuard roles={['ADMIN']}><AdminPage /></RoleGuard>} />
-      <Route path="/admin/orders" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminOrdersPage /></RoleGuard>} />
-      <Route path="/admin/orders/:orderId" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminOrderDetailsPage /></RoleGuard>} />
-      <Route path="/admin/shipments" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminShipmentsPage /></RoleGuard>} />
-      <Route path="/admin/refunds" element={<RoleGuard roles={['ADMIN', 'SUPPORT']}><AdminRefundsPage /></RoleGuard>} />
-      <Route path="/admin/inventory-dashboard" element={<RoleGuard roles={['ADMIN']}><InventoryDashboard /></RoleGuard>} />
-      <Route path="/admin/inventory" element={<RoleGuard roles={['ADMIN']}><InventoryListPage /></RoleGuard>} />
-      <Route path="/admin/inventory/:productVariantId" element={<RoleGuard roles={['ADMIN']}><InventoryDetailsPage /></RoleGuard>} />
-      <Route path="/admin/inventory/:productVariantId/receipts" element={<RoleGuard roles={['ADMIN']}><StockReceiptsPage /></RoleGuard>} />
-      <Route path="/admin/inventory/:productVariantId/adjustments" element={<RoleGuard roles={['ADMIN']}><StockAdjustmentsPage /></RoleGuard>} />
-      <Route path="/admin/inventory-movements" element={<RoleGuard roles={['ADMIN']}><InventoryMovementsPage /></RoleGuard>} />
-      <Route path="/admin/inventory-reservations" element={<RoleGuard roles={['ADMIN']}><InventoryReservationsPage /></RoleGuard>} />
-      <Route path="/admin/:resourceKey" element={<RoleGuard roles={['ADMIN']}><AdminResourcePage /></RoleGuard>} />
+      <Route path="/sessions" element={<CustomerRoute><SessionManagementPage /></CustomerRoute>} />
+      <Route path="/account" element={<CustomerRoute><SimplePage title="Account"><p>Profile, addresses, wishlist, notifications, and support tickets are backed by Users, UserAddresses, Wishlists, Notifications, and SupportTickets.</p><Link className="mt-4 inline-block text-[#8d5132] underline" to="/sessions">Manage sessions</Link></SimplePage></CustomerRoute>} />
+      <Route path="/notifications" element={<CustomerRoute><NotificationsPage /></CustomerRoute>} />
+      <Route path="/account/reviews" element={<CustomerRoute><MyReviews /></CustomerRoute>} />
+      <Route path="/support/tickets" element={<CustomerRoute><MyTickets /></CustomerRoute>} />
+      <Route path="/support/tickets/:ticketId" element={<CustomerRoute><TicketDetails /></CustomerRoute>} />
+      <Route path="/cart" element={<CustomerRoute><CartPage /></CustomerRoute>} />
+      <Route path="/checkout" element={<CustomerRoute><CheckoutPage /></CustomerRoute>} />
+      <Route path="/payments/result" element={<CustomerRoute><PaymentResultPage /></CustomerRoute>} />
+      <Route path="/orders/:orderId/confirmation" element={<CustomerRoute><OrderConfirmationPage /></CustomerRoute>} />
+      <Route path="/orders" element={<CustomerRoute><OrderHistoryPage /></CustomerRoute>} />
+      <Route path="/orders/:orderId" element={<CustomerRoute><OrderDetailsPage /></CustomerRoute>} />
+      <Route path="/orders/:orderId/tracking" element={<CustomerRoute><OrderTrackingPage /></CustomerRoute>} />
+      <Route path="/wishlist" element={<CustomerRoute><WishlistPage /></CustomerRoute>} />
+      <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+      <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+      <Route path="/admin/profile" element={<AdminRoute><AdminProfilePage /></AdminRoute>} />
+      <Route path="/admin/products" element={<AdminRoute><AdminProductsPage /></AdminRoute>} />
+      <Route path="/admin/categories" element={<AdminRoute><AdminCategoriesPage /></AdminRoute>} />
+      <Route path="/admin/brands" element={<AdminRoute><AdminBrandsPage /></AdminRoute>} />
+      <Route path="/admin/fragrances" element={<AdminRoute><AdminFragrancesPage /></AdminRoute>} />
+      <Route path="/admin/customers" element={<AdminRoute><AdminCustomersPage /></AdminRoute>} />
+      <Route path="/admin/customers/:customerId" element={<AdminRoute><AdminCustomerDetailsPage /></AdminRoute>} />
+      <Route path="/admin/coupons" element={<AdminRoute><AdminCouponsPage /></AdminRoute>} />
+      <Route path="/admin/shipping-settings" element={<AdminRoute><AdminShippingSettingsPage /></AdminRoute>} />
+      <Route path="/admin/settings" element={<AdminRoute roles={['ADMIN']}><AdminSettingsPage /></AdminRoute>} />
+      <Route path="/admin/reports" element={<AdminRoute><AdminReportsPage /></AdminRoute>} />
+      <Route path="/admin/audit-logs" element={<AdminRoute><AdminAuditLogsPage /></AdminRoute>} />
+      <Route path="/admin/reviews" element={<AdminRoute><ManageReviews /></AdminRoute>} />
+      <Route path="/admin/notifications" element={<AdminRoute><ManageNotifications /></AdminRoute>} />
+      <Route path="/admin/contact-messages" element={<AdminRoute><ManageContactMessages /></AdminRoute>} />
+      <Route path="/admin/support-tickets" element={<AdminRoute><ManageTickets /></AdminRoute>} />
+      <Route path="/admin/support/tickets/:ticketId" element={<AdminRoute><AdminTicketDetails /></AdminRoute>} />
+      <Route path="/admin/content/banners" element={<AdminRoute><ManageBanners /></AdminRoute>} />
+      <Route path="/admin/content/promotions" element={<AdminRoute><ManagePromotions /></AdminRoute>} />
+      <Route path="/admin/content/pages" element={<AdminRoute><ManageContentPages /></AdminRoute>} />
+      <Route path="/admin/content/pages/:id" element={<AdminRoute><EditContentPage /></AdminRoute>} />
+      <Route path="/admin/content/featured-products" element={<AdminRoute><ManageFeaturedProducts /></AdminRoute>} />
+      <Route path="/admin/content/seo" element={<AdminRoute><ManageSeo /></AdminRoute>} />
+      <Route path="/admin/resources" element={<AdminRoute roles={['ADMIN']}><AdminPage /></AdminRoute>} />
+      <Route path="/admin/orders" element={<AdminRoute><AdminOrdersPage /></AdminRoute>} />
+      <Route path="/admin/orders/:orderId" element={<AdminRoute><AdminOrderDetailsPage /></AdminRoute>} />
+      <Route path="/admin/shipments" element={<AdminRoute><AdminShipmentsPage /></AdminRoute>} />
+      <Route path="/admin/refunds" element={<AdminRoute><AdminRefundsPage /></AdminRoute>} />
+      <Route path="/admin/inventory-dashboard" element={<AdminRoute roles={['ADMIN']}><InventoryDashboard /></AdminRoute>} />
+      <Route path="/admin/inventory" element={<AdminRoute roles={['ADMIN']}><InventoryListPage /></AdminRoute>} />
+      <Route path="/admin/inventory/:productVariantId" element={<AdminRoute roles={['ADMIN']}><InventoryDetailsPage /></AdminRoute>} />
+      <Route path="/admin/inventory/:productVariantId/receipts" element={<AdminRoute roles={['ADMIN']}><StockReceiptsPage /></AdminRoute>} />
+      <Route path="/admin/inventory/:productVariantId/adjustments" element={<AdminRoute roles={['ADMIN']}><StockAdjustmentsPage /></AdminRoute>} />
+      <Route path="/admin/inventory-movements" element={<AdminRoute roles={['ADMIN']}><InventoryMovementsPage /></AdminRoute>} />
+      <Route path="/admin/inventory-reservations" element={<AdminRoute roles={['ADMIN']}><InventoryReservationsPage /></AdminRoute>} />
+      <Route path="/admin/:resourceKey" element={<AdminRoute roles={['ADMIN']}><AdminResourcePage /></AdminRoute>} />
       <Route path="*" element={<SimplePage title="Page not found"><Link className="text-[#8d5132] underline" to="/">Return home</Link></SimplePage>} />
     </Routes>
   );

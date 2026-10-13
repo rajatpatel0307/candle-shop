@@ -1,0 +1,6 @@
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../../../services/apiClient.js';
+import { ReviewTable } from '../components/ReviewTable.jsx';
+import { ReviewModerationModal } from '../components/ReviewModerationModal.jsx';
+export function ManageReviews() { const qc = useQueryClient(); const [selected, setSelected] = useState(null); const q = useQuery({ queryKey: ['admin-reviews'], queryFn: async () => (await apiClient.get('/admin/reviews')).data.data.reviews.items }); const mod = useMutation({ mutationFn: ({ id, status, reason }) => apiClient.patch(`/admin/reviews/${id}/moderation`, { status, reason }), onSuccess: () => { setSelected(null); qc.invalidateQueries({ queryKey: ['admin-reviews'] }); } }); return <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6"><h1 className="text-4xl font-semibold">Review moderation</h1><div className="mt-6"><ReviewTable rows={q.data || []} onSelect={setSelected} onModerate={(id, status) => mod.mutate({ id, status })} /></div><ReviewModerationModal review={selected} pending={mod.isPending} onClose={() => setSelected(null)} onModerate={(id, status, reason) => mod.mutate({ id, status, reason })} /></main>; }

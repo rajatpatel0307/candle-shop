@@ -4,6 +4,11 @@ import cartReducer from '../features/cart/store/cartSlice.js';
 import wishlistReducer from '../features/wishlist/store/wishlistSlice.js';
 import checkoutReducer from '../features/checkout/store/checkoutSlice.js';
 import ordersReducer from '../features/orders/store/ordersSlice.js';
+import reviewsReducer from '../features/reviews/reviews.slice.js';
+import notificationsReducer from '../features/notifications/notifications.slice.js';
+import supportReducer from '../features/support/support.slice.js';
+import homeReducer from '../features/home/home.slice.js';
+import contentReducer from '../features/content/content.slice.js';
 
 export const store = configureStore({
   reducer: {
@@ -12,5 +17,10 @@ export const store = configureStore({
     wishlist: wishlistReducer,
     checkout: checkoutReducer,
     orders: ordersReducer,
+    reviews: reviewsReducer,
+    notifications: notificationsReducer,
+    support: supportReducer,
+    home: homeReducer,
+    content: contentReducer,
   },
 });

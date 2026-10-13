@@ -1,0 +1,2 @@
+import { StarRating } from '../../../shared/components/StarRating.jsx';
+export function RatingSummary({ summary }) { return <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"><StarRating value={Math.round(Number(summary?.AverageRating || 0))} /><p className="mt-2 text-sm text-stone-600">{Number(summary?.AverageRating || 0).toFixed(1)} from {summary?.ReviewCount || 0} reviews</p></section>; }

@@ -1,0 +1,1 @@
+export function ReviewFilters({ sort, onSort }) { return <select className="input max-w-48" value={sort} onChange={(e) => onSort(e.target.value)}>{['newest', 'oldest', 'highest', 'lowest'].map((x) => <option key={x}>{x}</option>)}</select>; }

@@ -4,6 +4,18 @@ export const endpoints = {
   product: (slug) => `/store/products/${slug}`,
   categories: '/store/categories',
   contact: '/store/contact',
+  content: {
+    home: '/content/home',
+    page: (slug) => `/content/pages/${slug}`,
+    seo: '/content/seo',
+  },
+  adminContent: {
+    banners: '/admin/content/banners',
+    promotions: '/admin/content/promotions',
+    pages: '/admin/content/pages',
+    seo: '/admin/content/seo',
+    featuredProducts: '/admin/content/featured-products',
+  },
   adminResources: '/admin/resources',
   adminResource: (key) => `/admin/resources/${key}`,
   adminResourceRow: (key, id) => `/admin/resources/${key}/${id}`,
@@ -114,6 +126,10 @@ export const endpoints = {
   },
   adminReports: {
     report: (type) => `/admin/reports/${type}`,
+  },
+  adminCustomers: {
+    root: '/admin/customers',
+    detail: (customerId) => `/admin/customers/${customerId}`,
   },
   auditLogs: {
     root: '/admin/audit-logs',

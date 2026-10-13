@@ -254,6 +254,102 @@ export async function insertAuditLog({ userId, action, entityName, entityId, out
     `);
 }
 
+export async function listCustomers({ search, limit = 50, offset = 0 } = {}) {
+  const pool = await getPool();
+  const request = pool.request()
+    .input('limit', sql.Int, Math.min(Number(limit) || 50, 200))
+    .input('offset', sql.Int, Math.max(Number(offset) || 0, 0));
+  const where = [
+    'u.IsDeleted = 0',
+    `EXISTS (
+      SELECT 1
+      FROM dbo.UserRoles cur
+      INNER JOIN dbo.Roles cr ON cr.RoleId = cur.RoleId
+      WHERE cur.UserId = u.UserId AND cr.RoleCode = N'CUSTOMER'
+    )`,
+    `NOT EXISTS (
+      SELECT 1
+      FROM dbo.UserRoles sur
+      INNER JOIN dbo.Roles sr ON sr.RoleId = sur.RoleId
+      WHERE sur.UserId = u.UserId AND sr.RoleCode IN (N'ADMIN', N'SUPPORT')
+    )`,
+  ];
+
+  if (search) {
+    request.input('search', sql.NVarChar(300), `%${search}%`);
+    where.push('(u.FirstName LIKE @search OR u.LastName LIKE @search OR u.Email LIKE @search OR u.PhoneNumber LIKE @search)');
+  }
+
+  const result = await request.query(`
+    SELECT
+      u.UserId, u.FirstName, u.LastName, u.Email, u.PhoneNumber, u.AccountStatus,
+      u.EmailVerifiedAtUtc, u.LastLoginAtUtc, u.CreatedAtUtc,
+      COUNT(DISTINCT o.OrderId) AS OrderCount,
+      COALESCE(SUM(CASE WHEN o.PaymentStatus = 'SUCCEEDED' THEN o.GrandTotal ELSE 0 END), 0) AS LifetimeValue
+    FROM dbo.Users u
+    LEFT JOIN dbo.Orders o ON o.UserId = u.UserId
+    WHERE ${where.join(' AND ')}
+    GROUP BY u.UserId, u.FirstName, u.LastName, u.Email, u.PhoneNumber, u.AccountStatus,
+      u.EmailVerifiedAtUtc, u.LastLoginAtUtc, u.CreatedAtUtc
+    ORDER BY u.CreatedAtUtc DESC
+    OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
+  `);
+
+  return result.recordset;
+}
+
+export async function getCustomerDetails(userId) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('userId', sql.UniqueIdentifier, userId)
+    .query(`
+      SELECT
+        u.UserId, u.FirstName, u.LastName, u.Email, u.PhoneNumber, u.AccountStatus,
+        u.EmailVerifiedAtUtc, u.LastLoginAtUtc, u.CreatedAtUtc, u.UpdatedAtUtc,
+        STRING_AGG(r.RoleCode, ',') AS Roles
+      FROM dbo.Users u
+      INNER JOIN dbo.UserRoles ur ON ur.UserId = u.UserId
+      INNER JOIN dbo.Roles r ON r.RoleId = ur.RoleId
+      WHERE u.UserId = @userId AND u.IsDeleted = 0
+      GROUP BY u.UserId, u.FirstName, u.LastName, u.Email, u.PhoneNumber, u.AccountStatus,
+        u.EmailVerifiedAtUtc, u.LastLoginAtUtc, u.CreatedAtUtc, u.UpdatedAtUtc
+      HAVING
+        SUM(CASE WHEN r.RoleCode = N'CUSTOMER' THEN 1 ELSE 0 END) > 0
+        AND SUM(CASE WHEN r.RoleCode IN (N'ADMIN', N'SUPPORT') THEN 1 ELSE 0 END) = 0;
+
+      SELECT AddressId, AddressLabel, RecipientName, PhoneNumber, AddressLine1, AddressLine2,
+        Locality, City, StateOrProvince, PostalCode, CountryCode, IsDefaultShipping, IsDefaultBilling, CreatedAtUtc
+      FROM dbo.UserAddresses
+      WHERE UserId = @userId
+      ORDER BY IsDefaultShipping DESC, CreatedAtUtc DESC;
+
+      SELECT TOP 10 OrderId, OrderNumber, OrderStatus, PaymentStatus, GrandTotal, CurrencyCode, CreatedAtUtc
+      FROM dbo.Orders
+      WHERE UserId = @userId
+      ORDER BY CreatedAtUtc DESC;
+
+      SELECT
+        COUNT(1) AS TotalOrders,
+        COALESCE(SUM(CASE WHEN PaymentStatus = 'SUCCEEDED' THEN GrandTotal ELSE 0 END), 0) AS LifetimeValue,
+        MAX(CreatedAtUtc) AS LastOrderAtUtc
+      FROM dbo.Orders
+      WHERE UserId = @userId;
+    `);
+
+  const customer = result.recordsets[0][0] ?? null;
+  if (!customer) return null;
+
+  return {
+    customer: {
+      ...customer,
+      roles: customer.Roles ? customer.Roles.split(',').filter(Boolean) : [],
+    },
+    addresses: result.recordsets[1] || [],
+    orders: result.recordsets[2] || [],
+    summary: result.recordsets[3][0] || {},
+  };
+}
+
 export async function listSettings() {
   const pool = await getPool();
   const result = await pool.request().query('SELECT * FROM dbo.StoreSettings ORDER BY SettingKey ASC;');

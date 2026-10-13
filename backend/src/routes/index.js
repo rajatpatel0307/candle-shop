@@ -11,6 +11,11 @@ import paymentsRoutes from '../modules/payments/payments.routes.js';
 import ordersRoutes from '../modules/orders/orders.routes.js';
 import shippingRoutes from '../modules/shipping/shipping.routes.js';
 import refundsRoutes from '../modules/refunds/refunds.routes.js';
+import reviewsRoutes from '../modules/reviews/reviews.routes.js';
+import notificationsRoutes from '../modules/notifications/notifications.routes.js';
+import contactRoutes from '../modules/contact/contact.routes.js';
+import supportRoutes from '../modules/support/support.routes.js';
+import { adminContentRoutes, publicContentRoutes } from '../modules/content/index.js';
 
 const router = Router();
 
@@ -18,6 +23,8 @@ router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);
 router.use('/store', publicRoutes);
 router.use('/admin', adminRoutes);
+router.use('/admin/content', adminContentRoutes);
+router.use('/content', publicContentRoutes);
 router.use('/inventory', inventoryRoutes);
 router.use('/carts', cartsRoutes);
 router.use('/wishlists', wishlistsRoutes);
@@ -26,5 +33,9 @@ router.use('/payments', paymentsRoutes);
 router.use('/orders', ordersRoutes);
 router.use('/shipping', shippingRoutes);
 router.use('/refunds', refundsRoutes);
+router.use('/', reviewsRoutes);
+router.use('/', notificationsRoutes);
+router.use('/', contactRoutes);
+router.use('/', supportRoutes);
 
 export default router;

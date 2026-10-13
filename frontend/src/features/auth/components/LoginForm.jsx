@@ -1,18 +1,20 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { loginSchema } from '../schemas/authSchemas.js';
+import { getPostAuthPath } from '../utils/authRouting.js';
 import { PasswordInput } from './PasswordInput.jsx';
 
 export function LoginForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, status, error } = useAuth();
   const { register, handleSubmit, formState: { errors } } = useForm({ resolver: zodResolver(loginSchema) });
 
   async function onSubmit(values) {
-    await login(values);
-    navigate('/account');
+    const user = await login(values);
+    navigate(getPostAuthPath(user, location.state?.from), { replace: true });
   }
 
   return (

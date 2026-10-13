@@ -1,0 +1,7 @@
+import { Bell } from 'lucide-react';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { notificationsApi } from '../notifications.api.js';
+import { NotificationDropdown } from './NotificationDropdown.jsx';
+import { useAuth } from '../../auth/hooks/useAuth.js';
+export function NotificationBell() { const [open, setOpen] = useState(false); const { isAuthenticated } = useAuth(); const qc = useQueryClient(); const unread = useQuery({ queryKey: ['notifications-unread'], enabled: isAuthenticated, retry: false, queryFn: async () => (await notificationsApi.unread()).data.data.unread.count }); const list = useQuery({ queryKey: ['notifications-preview'], enabled: open && isAuthenticated, retry: false, queryFn: async () => (await notificationsApi.list()).data.data.notifications.items }); const mark = useMutation({ mutationFn: notificationsApi.markRead, onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications-unread'] }); qc.invalidateQueries({ queryKey: ['notifications-preview'] }); } }); if (!isAuthenticated) return null; return <div className="relative"><button className="icon-btn" onClick={() => setOpen(!open)} aria-label="Notifications"><Bell className="h-4 w-4" />{Boolean(unread.data) && <span className="absolute -right-1 -top-1 rounded-full bg-red-600 px-1 text-[10px] text-white">{unread.data}</span>}</button>{open && <NotificationDropdown items={list.data || []} onRead={(id) => mark.mutate(id)} />}</div>; }

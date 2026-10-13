@@ -1,0 +1,2 @@
+import { useState } from 'react';
+export function TicketMessageForm({ onSubmit, pending }) { const [message, setMessage] = useState(''); return <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"><textarea className="input min-h-24" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Reply" /><button className="btn-primary mt-3" disabled={pending || message.length < 2} onClick={() => { onSubmit({ message }); setMessage(''); }}>Send reply</button></div>; }

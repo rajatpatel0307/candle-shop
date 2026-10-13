@@ -1,0 +1,1 @@
+export function notificationTarget(item) { if (item.RelatedEntityType === 'SupportTicket') return `/support/tickets/${item.RelatedEntityId}`; if (item.RelatedEntityType === 'Order') return `/orders/${item.RelatedEntityId}`; return '/notifications'; }

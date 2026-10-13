@@ -1,0 +1,3 @@
+import { StatusBadge } from '../../../shared/components/StatusBadge.jsx';
+import { StarRating } from '../../../shared/components/StarRating.jsx';
+export function ReviewCard({ review }) { return <article className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"><StarRating value={review.Rating} /><h3 className="mt-2 font-semibold">{review.ReviewTitle || review.ProductName || 'Review'}</h3><p className="mt-1 text-sm text-stone-600">{review.ReviewText}</p><div className="mt-3 flex gap-2">{review.ReviewStatus && <StatusBadge status={review.ReviewStatus} />}{review.IsVerifiedPurchase && <StatusBadge status="Verified purchase" />}</div></article>; }

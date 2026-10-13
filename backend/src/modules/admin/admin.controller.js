@@ -3,6 +3,8 @@ import * as metrics from './admin.metrics.service.js';
 import * as reports from './admin.reports.service.js';
 import * as audit from './admin.audit.service.js';
 import * as settings from './admin.settings.service.js';
+import * as repo from './admin.repository.js';
+import { AppError } from '../../common/errors/AppError.js';
 import { auditLogIdSchema, dateRangeSchema, listQuerySchema, settingKeySchema, settingsBulkSchema, settingUpsertSchema } from './admin.validation.js';
 import { ok, validate } from '../carts/carts.utils.js';
 
@@ -52,6 +54,14 @@ export async function auditLogs(req, res) {
 export async function auditLog(req, res) {
   const { id } = validate(auditLogIdSchema, req.params);
   ok(res, 'Audit log loaded.', { auditLog: await audit.get(id) });
+}
+export async function customers(req, res) {
+  ok(res, 'Customers loaded.', { customers: await repo.listCustomers(req.query) });
+}
+export async function customerDetails(req, res) {
+  const customer = await repo.getCustomerDetails(req.params.customerId);
+  if (!customer) throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Customer was not found.');
+  ok(res, 'Customer loaded.', customer);
 }
 export async function listSettings(req, res) {
   ok(res, 'Settings loaded.', { settings: await settings.list() });
