@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addCartItemSchema, updateCartItemSchema } from './carts.validation.js';
+import { addCartItemSchema, cartItemIdSchema, updateCartItemSchema } from './carts.validation.js';
 
 test('addCartItemSchema accepts a product variant and quantity', () => {
   const parsed = addCartItemSchema.safeParse({
@@ -17,4 +17,10 @@ test('addCartItemSchema requires product or variant identity', () => {
 
 test('updateCartItemSchema rejects zero quantity', () => {
   assert.equal(updateCartItemSchema.safeParse({ quantity: 0 }).success, false);
+});
+
+test('cartItemIdSchema accepts numeric identity values', () => {
+  const parsed = cartItemIdSchema.safeParse({ itemId: '42' });
+  assert.equal(parsed.success, true);
+  assert.equal(parsed.data.itemId, 42);
 });

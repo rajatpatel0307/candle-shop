@@ -22,6 +22,11 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
+export const verifyEmailSchema = z.object({
+  email: z.string().trim().email().max(320).transform((value) => value.toLowerCase()),
+  otp: z.string().trim().regex(/^\d{6}$/, 'Verification code must be 6 digits.'),
+});
+
 export const tokenSchema = z.object({
   token: z.string().min(32).max(500),
 });

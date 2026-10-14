@@ -9,6 +9,7 @@ import {
   resetPasswordSchema,
   sessionIdSchema,
   tokenSchema,
+  verifyEmailSchema,
 } from './auth.validation.js';
 
 function validate(schema, data) {
@@ -29,8 +30,7 @@ function ok(res, message, data = undefined) {
 
 export async function register(req, res) {
   const result = await service.register(validate(registerSchema, req.body), req);
-  setAuthCookies(res, result);
-  ok(res.status(201), 'Registration successful. Please verify your email.', { user: result.user });
+  ok(res.status(201), 'Registration started. Please enter the OTP sent to your email.', { email: result.email, user: result.user });
 }
 
 export async function login(req, res) {
@@ -62,8 +62,15 @@ export async function me(req, res) {
 }
 
 export async function verifyEmail(req, res) {
-  await service.verifyEmail(validate(tokenSchema, req.body).token);
-  ok(res, 'Email verified.');
+  if (req.body?.token) {
+    await service.verifyEmail(validate(tokenSchema, req.body).token);
+    ok(res, 'Email verified.');
+    return;
+  }
+
+  const result = await service.verifyEmailOtp(validate(verifyEmailSchema, req.body), req);
+  setAuthCookies(res, result);
+  ok(res, 'Email verified.', { user: result.user });
 }
 
 export async function resendVerification(req, res) {

@@ -206,7 +206,7 @@ export async function createOrderTransaction({ userId, session, pricing, shippin
 
     await new sql.Request(transaction)
       .input('cartId', sql.UniqueIdentifier, pricing.cartId)
-      .query("UPDATE dbo.Carts SET CartStatus = 'CONVERTED', UpdatedAtUtc = SYSUTCDATETIME() WHERE CartId = @cartId;");
+      .query("UPDATE dbo.Carts SET CartStatus = 'Converted', UpdatedAtUtc = SYSUTCDATETIME() WHERE CartId = @cartId;");
 
     await transaction.commit();
     return { order: order.recordset[0], idempotent: false };

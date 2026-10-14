@@ -163,6 +163,26 @@ export async function consumeEmailVerificationToken(tokenHashValue) {
   return result.recordset[0] ?? null;
 }
 
+export async function consumeEmailVerificationOtp(email, tokenHashValue) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('email', sql.NVarChar(320), email)
+    .input('tokenHash', sql.VarBinary(64), tokenHashValue)
+    .query(`
+      UPDATE evt
+      SET VerifiedAtUtc = SYSUTCDATETIME()
+      OUTPUT inserted.UserId
+      FROM dbo.EmailVerificationTokens evt
+      INNER JOIN dbo.Users u ON u.UserId = evt.UserId
+      WHERE u.NormalizedEmail = LOWER(LTRIM(RTRIM(@email)))
+        AND u.IsDeleted = 0
+        AND evt.TokenHash = @tokenHash
+        AND evt.VerifiedAtUtc IS NULL
+        AND evt.ExpiresAtUtc > SYSUTCDATETIME();
+    `);
+  return result.recordset[0] ?? null;
+}
+
 export async function createPasswordResetToken(userId, tokenHashValue, expiresAt) {
   const pool = await getPool();
   await pool.request()
@@ -225,15 +245,6 @@ export async function rotateRefreshToken({ oldTokenId, newTokenId, userId, token
   await transaction.begin();
   try {
     await new sql.Request(transaction)
-      .input('oldTokenId', sql.UniqueIdentifier, oldTokenId)
-      .input('newTokenId', sql.UniqueIdentifier, newTokenId)
-      .query(`
-        UPDATE dbo.RefreshTokens
-        SET RevokedAtUtc = SYSUTCDATETIME(), ReplacedByTokenId = @newTokenId
-        WHERE RefreshTokenId = @oldTokenId AND RevokedAtUtc IS NULL;
-      `);
-
-    await new sql.Request(transaction)
       .input('newTokenId', sql.UniqueIdentifier, newTokenId)
       .input('userId', sql.UniqueIdentifier, userId)
       .input('tokenHash', sql.VarBinary(64), tokenHashValue)
@@ -244,6 +255,19 @@ export async function rotateRefreshToken({ oldTokenId, newTokenId, userId, token
         INSERT INTO dbo.RefreshTokens (RefreshTokenId, UserId, TokenHash, ExpiresAtUtc, CreatedByIp, UserAgent)
         VALUES (@newTokenId, @userId, @tokenHash, @expiresAt, @ip, @userAgent);
       `);
+
+    const rotated = await new sql.Request(transaction)
+      .input('oldTokenId', sql.UniqueIdentifier, oldTokenId)
+      .input('newTokenId', sql.UniqueIdentifier, newTokenId)
+      .query(`
+        UPDATE dbo.RefreshTokens
+        SET RevokedAtUtc = SYSUTCDATETIME(), ReplacedByTokenId = @newTokenId
+        WHERE RefreshTokenId = @oldTokenId AND RevokedAtUtc IS NULL;
+      `);
+
+    if (rotated.rowsAffected[0] !== 1) {
+      throw new Error('Refresh token was already rotated.');
+    }
 
     await transaction.commit();
   } catch (error) {

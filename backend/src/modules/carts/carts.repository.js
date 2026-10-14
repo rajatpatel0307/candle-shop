@@ -76,7 +76,7 @@ export async function upsertCartItem({ cartId, productVariantId, quantity }) {
     const existing = await getExistingCartItem(cartId, productVariantId, transaction);
     if (existing) {
       await new sql.Request(transaction)
-        .input('cartItemId', sql.UniqueIdentifier, existing.CartItemId)
+        .input('cartItemId', sql.BigInt, existing.CartItemId)
         .input('quantity', sql.Int, quantity)
         .query(`
           UPDATE dbo.CartItems
@@ -86,13 +86,12 @@ export async function upsertCartItem({ cartId, productVariantId, quantity }) {
         `);
     } else {
       await new sql.Request(transaction)
-        .input('cartItemId', sql.UniqueIdentifier, randomUUID())
         .input('cartId', sql.UniqueIdentifier, cartId)
         .input('productVariantId', sql.UniqueIdentifier, productVariantId)
         .input('quantity', sql.Int, quantity)
         .query(`
-          INSERT INTO dbo.CartItems (CartItemId, CartId, ProductVariantId, Quantity)
-          VALUES (@cartItemId, @cartId, @productVariantId, @quantity);
+          INSERT INTO dbo.CartItems (CartId, ProductVariantId, Quantity)
+          VALUES (@cartId, @productVariantId, @quantity);
         `);
     }
 
@@ -111,7 +110,7 @@ export async function updateCartItemQuantity({ userId, itemId, quantity }) {
   const pool = await getPool();
   const result = await pool.request()
     .input('userId', sql.UniqueIdentifier, userId)
-    .input('itemId', sql.UniqueIdentifier, itemId)
+    .input('itemId', sql.BigInt, itemId)
     .input('quantity', sql.Int, quantity)
     .query(`
       UPDATE ci
@@ -121,7 +120,7 @@ export async function updateCartItemQuantity({ userId, itemId, quantity }) {
       INNER JOIN dbo.Carts c ON c.CartId = ci.CartId
       WHERE ci.CartItemId = @itemId
         AND c.UserId = @userId
-        AND c.CartStatus = N'ACTIVE';
+        AND c.CartStatus = N'Active';
     `);
   return result.rowsAffected[0] > 0;
 }
@@ -130,14 +129,14 @@ export async function removeCartItem({ userId, itemId }) {
   const pool = await getPool();
   const result = await pool.request()
     .input('userId', sql.UniqueIdentifier, userId)
-    .input('itemId', sql.UniqueIdentifier, itemId)
+    .input('itemId', sql.BigInt, itemId)
     .query(`
       DELETE ci
       FROM dbo.CartItems ci
       INNER JOIN dbo.Carts c ON c.CartId = ci.CartId
       WHERE ci.CartItemId = @itemId
         AND c.UserId = @userId
-        AND c.CartStatus = N'ACTIVE';
+        AND c.CartStatus = N'Active';
     `);
   return result.rowsAffected[0] > 0;
 }
@@ -150,7 +149,7 @@ export async function clearCart(userId) {
       DELETE ci
       FROM dbo.CartItems ci
       INNER JOIN dbo.Carts c ON c.CartId = ci.CartId
-      WHERE c.UserId = @userId AND c.CartStatus = N'ACTIVE';
+      WHERE c.UserId = @userId AND c.CartStatus = N'Active';
     `);
 }
 

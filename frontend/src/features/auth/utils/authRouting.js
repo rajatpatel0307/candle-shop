@@ -15,19 +15,13 @@ export function hasAnyRole(user, roles) {
 
 export function getRoleHomePath(user) {
   if (hasAnyRole(user, STAFF_ROLES)) return '/admin/dashboard';
-  return '/account';
+  return '/';
 }
 
 export function getPostAuthPath(user, fromPath) {
   const isStaff = hasAnyRole(user, STAFF_ROLES);
 
-  if (isStaff) {
-    return fromPath?.startsWith('/admin') ? fromPath : '/admin/dashboard';
-  }
+  if (isStaff) return '/admin/dashboard';
 
-  if (fromPath?.startsWith('/admin')) {
-    return getRoleHomePath(user);
-  }
-
-  return fromPath && fromPath !== '/login' && fromPath !== '/register' ? fromPath : getRoleHomePath(user);
+  return getRoleHomePath(user);
 }

@@ -8,7 +8,7 @@ export const authApi = {
   logout: () => apiClient.post(endpoints.auth.logout).then((res) => res.data),
   logoutAll: () => apiClient.post(endpoints.auth.logoutAll).then((res) => res.data),
   me: () => apiClient.get(endpoints.auth.me).then((res) => res.data),
-  verifyEmail: (token) => apiClient.post(endpoints.auth.verifyEmail, { token }).then((res) => res.data),
+  verifyEmail: (payload) => apiClient.post(endpoints.auth.verifyEmail, payload).then((res) => res.data),
   resendVerification: (email) => apiClient.post(endpoints.auth.resendVerification, { email }).then((res) => res.data),
   forgotPassword: (email) => apiClient.post(endpoints.auth.forgotPassword, { email }).then((res) => res.data),
   resetPassword: (payload) => apiClient.post(endpoints.auth.resetPassword, payload).then((res) => res.data),

@@ -27,12 +27,11 @@ async function sendMail({ to, subject, text }) {
   await transporter.sendMail({ from: env.EMAIL_FROM, to, subject, text });
 }
 
-export async function sendVerificationEmail(user, token) {
-  const url = `${env.FRONTEND_URL}/verify-email?token=${encodeURIComponent(token)}`;
+export async function sendVerificationEmail(user, otp) {
   await sendMail({
     to: user.email,
-    subject: 'Verify your Candle Commerce email',
-    text: `Verify your email: ${url}`,
+    subject: 'Your Candle Commerce verification code',
+    text: `Your Candle Commerce verification code is ${otp}. This code expires soon.`,
   });
 }
 

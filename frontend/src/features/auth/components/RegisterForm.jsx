@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { registerSchema } from '../schemas/authSchemas.js';
-import { getRoleHomePath } from '../utils/authRouting.js';
 import { passwordStrength } from '../utils/authHelpers.js';
 import { PasswordInput } from './PasswordInput.jsx';
 
@@ -16,8 +15,9 @@ export function RegisterForm() {
 
   async function onSubmit(values) {
     const { confirmPassword, ...payload } = values;
-    const user = await createAccount(payload);
-    navigate(getRoleHomePath(user), { replace: true });
+    const result = await createAccount(payload);
+    const email = result?.email || result?.user?.email || payload.email;
+    navigate(`/verify-email?email=${encodeURIComponent(email)}`, { replace: true });
   }
 
   return (

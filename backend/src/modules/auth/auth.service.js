@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { env } from '../../config/env.js';
 import { AppError } from '../../common/errors/AppError.js';
 import * as repo from './auth.repository.js';
@@ -10,6 +10,9 @@ import { sendPasswordResetEmail, sendVerificationEmail } from './auth.email.serv
 function assertActive(user) {
   if (!user || user.AccountStatus === 'Closed' || user.IsDeleted) {
     throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password.');
+  }
+  if (user.AccountStatus === 'Pending') {
+    throw new AppError(403, 'EMAIL_VERIFICATION_REQUIRED', 'Please verify your email before logging in.');
   }
   if (user.AccountStatus === 'Suspended') {
     throw new AppError(403, 'ACCOUNT_SUSPENDED', 'This account is suspended.');
@@ -37,6 +40,10 @@ async function issueSession(user, req) {
   };
 }
 
+function createVerificationOtp() {
+  return String(randomInt(100000, 1000000));
+}
+
 export async function register(input, req) {
   const existing = await repo.findUserByEmail(input.email);
   if (existing) throw new AppError(409, 'EMAIL_ALREADY_REGISTERED', 'An account already exists for this email.');
@@ -45,15 +52,15 @@ export async function register(input, req) {
   const row = await repo.createCustomerUser({ ...input, passwordHash });
   const user = normalizeUser(row);
 
-  const token = randomToken();
+  const otp = createVerificationOtp();
   await repo.createEmailVerificationToken(
     user.id,
-    tokenHash(token),
+    tokenHash(otp),
     addMinutes(new Date(), env.EMAIL_VERIFICATION_EXPIRES_MINUTES),
   );
-  await sendVerificationEmail(user, token);
+  await sendVerificationEmail(user, otp);
 
-  return issueSession(user, req);
+  return { user, email: user.email };
 }
 
 export async function login({ email, password }, req) {
@@ -85,17 +92,25 @@ export async function verifyEmail(token) {
   return { verified: true };
 }
 
+export async function verifyEmailOtp(input, req) {
+  const consumed = await repo.consumeEmailVerificationOtp(input.email, tokenHash(input.otp));
+  if (!consumed) throw new AppError(400, 'INVALID_OR_EXPIRED_OTP', 'Verification code is invalid or expired.');
+  await repo.markEmailVerified(consumed.UserId);
+  const row = await repo.findUserById(consumed.UserId);
+  return issueSession(normalizeUser(row), req);
+}
+
 export async function resendVerification(email) {
   const row = await repo.findUserByEmail(email);
   if (!row || row.EmailVerifiedAtUtc) return;
   const user = normalizeUser(row);
-  const token = randomToken();
+  const otp = createVerificationOtp();
   await repo.createEmailVerificationToken(
     user.id,
-    tokenHash(token),
+    tokenHash(otp),
     addMinutes(new Date(), env.EMAIL_VERIFICATION_EXPIRES_MINUTES),
   );
-  await sendVerificationEmail(user, token);
+  await sendVerificationEmail(user, otp);
 }
 
 export async function forgotPassword(email) {
@@ -153,7 +168,7 @@ export async function refresh(refreshToken, req) {
     userAgent: req.headers['user-agent'] || null,
   });
   return {
-    accessToken: createAccessToken(user, stored.SessionId),
+    accessToken: createAccessToken(user, nextTokenId),
     refreshToken: next.token,
     user,
   };

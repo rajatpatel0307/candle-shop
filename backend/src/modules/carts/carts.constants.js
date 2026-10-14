@@ -1,7 +1,7 @@
 export const CART_STATUS = {
-  ACTIVE: 'ACTIVE',
-  CONVERTED: 'CONVERTED',
-  ABANDONED: 'ABANDONED',
+  ACTIVE: 'Active',
+  CONVERTED: 'Converted',
+  ABANDONED: 'Abandoned',
 };
 
 export const DEFAULT_CURRENCY = 'INR';

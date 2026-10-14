@@ -10,6 +10,23 @@ export function isDatabaseSchemaError(error) {
     && (error?.number === 208 || error?.originalError?.code === 208);
 }
 
+export function isDatabaseRequestError(error) {
+  return error?.code === 'EREQUEST' || error?.name === 'RequestError';
+}
+
+export function databaseRequestError(error) {
+  const number = error?.number ?? error?.originalError?.number;
+  const messages = {
+    245: 'One of the submitted values has an invalid data type.',
+    515: 'A required field is missing.',
+    547: 'A submitted value violates a relationship or allowed-value rule.',
+    2601: 'A record with the same unique value already exists.',
+    2627: 'A record with the same unique value already exists.',
+  };
+
+  return new AppError(400, 'DATABASE_VALIDATION_ERROR', messages[number] || 'The submitted record could not be saved. Check the field values and try again.');
+}
+
 export function getDatabaseErrorMessage(error) {
   const message = error?.details?.[0]?.message
     || error?.originalError?.details?.[0]?.message

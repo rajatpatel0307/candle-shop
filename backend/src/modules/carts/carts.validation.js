@@ -18,5 +18,5 @@ export const updateCartItemSchema = z.object({
 });
 
 export const cartItemIdSchema = z.object({
-  itemId: guid,
+  itemId: z.coerce.number().int().positive(),
 });

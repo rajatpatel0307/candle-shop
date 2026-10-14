@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { AppError } from '../../common/errors/AppError.js';
-import { databaseSchemaError, databaseUnavailableError, isDatabaseConnectionError, isDatabaseSchemaError } from '../../common/errors/databaseErrors.js';
+import { databaseRequestError, databaseSchemaError, databaseUnavailableError, isDatabaseConnectionError, isDatabaseRequestError, isDatabaseSchemaError } from '../../common/errors/databaseErrors.js';
 import { asyncHandler } from '../../common/middleware/asyncHandler.js';
 import { authenticate } from '../auth/auth.middleware.js';
 import {
@@ -79,8 +79,9 @@ router.get('/resources/:resource', asyncHandler(async (req, res) => {
     res.json({ data });
   } catch (error) {
     if (isDatabaseSchemaError(error)) throw databaseSchemaError(error);
-    if (!isDatabaseConnectionError(error)) throw error;
-    throw databaseUnavailableError(error);
+    if (isDatabaseConnectionError(error)) throw databaseUnavailableError(error);
+    if (isDatabaseRequestError(error)) throw databaseRequestError(error);
+    throw error;
   }
 }));
 
@@ -91,8 +92,9 @@ router.get('/resources/:resource/:id', asyncHandler(async (req, res) => {
     item = await getResourceById(resource, parseId(resource, req.params.id));
   } catch (error) {
     if (isDatabaseSchemaError(error)) throw databaseSchemaError(error);
-    if (!isDatabaseConnectionError(error)) throw error;
-    throw databaseUnavailableError(error);
+    if (isDatabaseConnectionError(error)) throw databaseUnavailableError(error);
+    if (isDatabaseRequestError(error)) throw databaseRequestError(error);
+    throw error;
   }
   if (!item) throw new AppError(404, 'ROW_NOT_FOUND', 'Record was not found.');
   res.json({ data: item });
@@ -105,8 +107,9 @@ router.post('/resources/:resource', asyncHandler(async (req, res) => {
     item = await createResource(resource, req.body);
   } catch (error) {
     if (isDatabaseSchemaError(error)) throw databaseSchemaError(error);
-    if (!isDatabaseConnectionError(error)) throw error;
-    throw databaseUnavailableError(error);
+    if (isDatabaseConnectionError(error)) throw databaseUnavailableError(error);
+    if (isDatabaseRequestError(error)) throw databaseRequestError(error);
+    throw error;
   }
   res.status(201).json({ data: item });
 }));
@@ -118,8 +121,9 @@ router.put('/resources/:resource/:id', asyncHandler(async (req, res) => {
     item = await updateResource(resource, parseId(resource, req.params.id), req.body);
   } catch (error) {
     if (isDatabaseSchemaError(error)) throw databaseSchemaError(error);
-    if (!isDatabaseConnectionError(error)) throw error;
-    throw databaseUnavailableError(error);
+    if (isDatabaseConnectionError(error)) throw databaseUnavailableError(error);
+    if (isDatabaseRequestError(error)) throw databaseRequestError(error);
+    throw error;
   }
   if (!item) throw new AppError(404, 'ROW_NOT_FOUND', 'Record was not found.');
   res.json({ data: item });
@@ -132,8 +136,9 @@ router.delete('/resources/:resource/:id', asyncHandler(async (req, res) => {
     deleted = await deleteResource(resource, parseId(resource, req.params.id));
   } catch (error) {
     if (isDatabaseSchemaError(error)) throw databaseSchemaError(error);
-    if (!isDatabaseConnectionError(error)) throw error;
-    throw databaseUnavailableError(error);
+    if (isDatabaseConnectionError(error)) throw databaseUnavailableError(error);
+    if (isDatabaseRequestError(error)) throw databaseRequestError(error);
+    throw error;
   }
   if (!deleted) throw new AppError(404, 'ROW_NOT_FOUND', 'Record was not found.');
   res.status(204).send();

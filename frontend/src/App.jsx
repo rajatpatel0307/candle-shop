@@ -112,7 +112,6 @@ const footerSections = [
   {
     title: 'Account',
     links: [
-      { to: '/account', label: 'Account' },
       { to: '/orders', label: 'Orders' },
       { to: '/notifications', label: 'Notifications' },
       { to: '/support/tickets', label: 'Support tickets' },
@@ -185,7 +184,6 @@ const adminNavSections = [
     items: [
       { to: '/admin/inventory-dashboard', label: 'Inventory', icon: Warehouse, roles: ['ADMIN'] },
       { to: '/admin/settings', label: 'Settings', icon: Settings, roles: ['ADMIN'] },
-      { to: '/admin/resources', label: 'Resources', icon: LayoutDashboard, roles: ['ADMIN'] },
     ],
   },
 ];
@@ -390,7 +388,7 @@ function AccountMenu({ onNavigate }) {
             }}
           >
             <UserRound className="h-4 w-4" />
-            {isStaff ? 'Profile' : 'Account'}
+            {isStaff ? 'Profile' : 'Home'}
           </Link>
           <button
             type="button"
@@ -590,6 +588,8 @@ function ProductPage() {
   const reviews = useQuery({ queryKey: ['product-reviews', product?.ProductId], enabled: Boolean(product?.ProductId), retry: false, queryFn: async () => (await reviewsApi.list(product.ProductId)).data.data.reviews.items });
   const reviewMutation = useMutation({ mutationFn: (payload) => reviewsApi.create(product.ProductId, payload), onSuccess: () => { reviewSummary.refetch(); reviews.refetch(); } });
   const firstVariant = product?.variants?.[0];
+  const availableQuantity = Number(firstVariant?.AvailableQuantity || 0);
+  const canAddToCart = Boolean(firstVariant?.ProductVariantId) && availableQuantity > 0;
   const addPayload = {
     productId: product?.ProductId,
     ...(firstVariant?.ProductVariantId ? { productVariantId: firstVariant.ProductVariantId } : {}),
@@ -608,11 +608,13 @@ function ProductPage() {
           <p className="mt-4 text-lg leading-8 text-stone-600">{product?.ShortDescription || product?.Description}</p>
           <p className="mt-6 text-2xl font-semibold">{currency(product?.variants?.[0]?.SellingPrice || product?.SellingPrice)}</p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <button className="btn-primary" disabled={cartActions.add.isPending || !product?.ProductId} onClick={() => cartActions.add.mutate(addPayload)}>
-              Add to cart
+            <button className="btn-primary" disabled={cartActions.add.isPending || !product?.ProductId || !canAddToCart} onClick={() => cartActions.add.mutate(addPayload)}>
+              {cartActions.add.isPending ? 'Adding...' : canAddToCart ? 'Add to cart' : 'Unavailable'}
             </button>
             <WishlistButton productId={product?.ProductId} productVariantId={firstVariant?.ProductVariantId} />
           </div>
+          {!firstVariant && <p className="mt-3 text-sm text-amber-700">This product does not have a purchasable option yet.</p>}
+          {firstVariant && availableQuantity <= 0 && <p className="mt-3 text-sm text-amber-700">This product is currently out of stock.</p>}
           {cartActions.add.isError && <p className="mt-3 text-sm text-red-700">{cartActions.add.error?.response?.data?.error?.message || 'Could not add to cart.'}</p>}
           {cartActions.add.isSuccess && <p className="mt-3 text-sm text-green-700">Added to cart.</p>}
           {isError && <p className="mt-4 text-sm text-stone-600">Sample detail shown until this product exists in MSSQL.</p>}
@@ -865,7 +867,7 @@ function AppRoutes() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/sessions" element={<CustomerRoute><SessionManagementPage /></CustomerRoute>} />
-      <Route path="/account" element={<CustomerRoute><SimplePage title="Account"><p>Profile, addresses, wishlist, notifications, and support tickets are backed by Users, UserAddresses, Wishlists, Notifications, and SupportTickets.</p><Link className="mt-4 inline-block text-[#8d5132] underline" to="/sessions">Manage sessions</Link></SimplePage></CustomerRoute>} />
+      <Route path="/account" element={<Navigate to="/" replace />} />
       <Route path="/notifications" element={<CustomerRoute><NotificationsPage /></CustomerRoute>} />
       <Route path="/account/reviews" element={<CustomerRoute><MyReviews /></CustomerRoute>} />
       <Route path="/support/tickets" element={<CustomerRoute><MyTickets /></CustomerRoute>} />
@@ -915,7 +917,7 @@ function AppRoutes() {
       <Route path="/admin/inventory/:productVariantId/adjustments" element={<AdminRoute roles={['ADMIN']}><StockAdjustmentsPage /></AdminRoute>} />
       <Route path="/admin/inventory-movements" element={<AdminRoute roles={['ADMIN']}><InventoryMovementsPage /></AdminRoute>} />
       <Route path="/admin/inventory-reservations" element={<AdminRoute roles={['ADMIN']}><InventoryReservationsPage /></AdminRoute>} />
-      <Route path="/admin/:resourceKey" element={<AdminRoute roles={['ADMIN']}><AdminResourcePage /></AdminRoute>} />
+      <Route path="/admin/:resourceKey" element={<Navigate to="/admin/dashboard" replace />} />
       <Route path="*" element={<SimplePage title="Page not found"><Link className="text-[#8d5132] underline" to="/">Return home</Link></SimplePage>} />
     </Routes>
   );
