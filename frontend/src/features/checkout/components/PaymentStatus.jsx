@@ -12,7 +12,7 @@ export function PaymentStatus({ status }) {
         <div className="flex justify-between"><dt>Order</dt><dd>{order.OrderNumber}</dd></div>
         <div className="flex justify-between"><dt>Amount</dt><dd>{currency(order.GrandTotal, order.CurrencyCode)}</dd></div>
         <div className="flex justify-between"><dt>Order status</dt><dd>{order.OrderStatus}</dd></div>
-        <div className="flex justify-between"><dt>Payment status</dt><dd>{payment?.PaymentStatus || order.PaymentStatus}</dd></div>
+        <div className="flex justify-between"><dt>Payment status</dt><dd>{order.PaymentMethod === 'COD' && order.PaymentStatus !== 'SUCCEEDED' ? 'Pay on delivery' : payment?.PaymentStatus || order.PaymentStatus}</dd></div>
       </dl>
       {order.PaymentStatus === 'SUCCEEDED' && <Link className="btn-primary mt-5" to={`/orders/${order.OrderId}/confirmation`}>View confirmation</Link>}
     </section>

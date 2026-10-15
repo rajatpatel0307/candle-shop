@@ -537,9 +537,7 @@ export async function expireReservations(limit) {
 }
 
 async function insertMovement(transaction, { productVariantId, movementType, quantityChange, previous, next, referenceType, referenceId, notes, userId, idempotencyKey }) {
-  const movementId = randomUUID();
   const result = await new sql.Request(transaction)
-    .input('movementId', sql.UniqueIdentifier, movementId)
     .input('productVariantId', sql.UniqueIdentifier, productVariantId)
     .input('movementType', sql.VarChar(30), movementType)
     .input('quantityChange', sql.Int, quantityChange)
@@ -552,13 +550,13 @@ async function insertMovement(transaction, { productVariantId, movementType, qua
     .input('idempotencyKey', sql.UniqueIdentifier, idempotencyKey ?? null)
     .query(`
       INSERT INTO dbo.InventoryMovements (
-        InventoryMovementId, ProductVariantId, MovementType, QuantityChange,
+        ProductVariantId, MovementType, QuantityChange,
         PreviousOnHandQuantity, NewOnHandQuantity, ReferenceType, ReferenceId,
         Notes, CreatedByUserId, IdempotencyKey
       )
       OUTPUT inserted.*
       VALUES (
-        @movementId, @productVariantId, @movementType, @quantityChange,
+        @productVariantId, @movementType, @quantityChange,
         @previous, @next, @referenceType, @referenceId,
         @notes, @userId, @idempotencyKey
       );

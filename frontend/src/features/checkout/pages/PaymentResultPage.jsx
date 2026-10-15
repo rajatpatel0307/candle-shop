@@ -2,11 +2,14 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { CheckoutLoading } from '../components/CheckoutLoading.jsx';
 import { PaymentStatus } from '../components/PaymentStatus.jsx';
 import { usePaymentStatus } from '../hooks/usePayment.js';
+import { isOrderConfirmed, OrderSuccess } from '../components/OrderSuccess.jsx';
 
 export function PaymentResultPage() {
   const [params] = useSearchParams();
   const orderId = params.get('orderId');
   const query = usePaymentStatus(orderId);
+
+  if (isOrderConfirmed(query.data?.order)) return <OrderSuccess order={query.data.order} />;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">

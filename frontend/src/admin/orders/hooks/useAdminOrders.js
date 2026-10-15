@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminOrdersApi } from '../api/adminOrdersApi.js';
 
 export function useAdminOrders(params = {}) {
-  return useQuery({ queryKey: ['admin-orders', params], queryFn: async () => (await adminOrdersApi.list(params)).data.data.orders });
+  return useQuery({ queryKey: ['admin-orders', params], queryFn: async () => (await adminOrdersApi.list(params)).data.data.orders, refetchInterval: 15000 });
 }
 
 export function useAdminOrder(orderId) {

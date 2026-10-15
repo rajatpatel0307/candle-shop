@@ -4,10 +4,11 @@ import { OrderStatusBadge } from '../../../features/orders/components/OrderStatu
 
 export function AdminOrdersTable({ orders = [] }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">
+    <section className="overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-sm">
       <table className="w-full min-w-[900px] text-left text-sm">
         <thead className="bg-stone-100 text-xs uppercase text-stone-600"><tr><th className="px-4 py-3">Order</th><th>Customer</th><th>Status</th><th>Payment</th><th>Total</th><th>Created</th><th>Actions</th></tr></thead>
         <tbody>
+          {orders.length === 0 && <tr><td colSpan={7} className="px-5 py-12 text-center text-stone-500">No orders found. Confirmed orders will appear here.</td></tr>}
           {orders.map((order) => (
             <tr key={order.OrderId} className="border-t border-stone-100">
               <td className="px-4 py-3 font-semibold">{order.OrderNumber}</td>

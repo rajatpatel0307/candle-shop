@@ -20,7 +20,7 @@ export async function getOrderByProviderOrderId(providerOrderId) {
       SELECT TOP 1 o.*, p.PaymentId, p.PaymentStatus AS CurrentPaymentStatus
       FROM dbo.Payments p
       INNER JOIN dbo.Orders o ON o.OrderId = p.OrderId
-      WHERE p.PaymentProvider = @provider AND p.ProviderOrderId = @providerOrderId
+      WHERE p.ProviderCode = @provider AND p.ProviderOrderId = @providerOrderId
       ORDER BY p.CreatedAtUtc DESC;
     `);
   return result.recordset[0] ?? null;
@@ -49,7 +49,7 @@ export async function createPendingPayment({ order, idempotencyKey }) {
     .input('amount', sql.Decimal(18, 2), order.GrandTotal)
     .input('currency', sql.Char(3), order.CurrencyCode)
     .query(`
-      INSERT INTO dbo.Payments (PaymentId, OrderId, PaymentProvider, PaymentStatus, IdempotencyKey, Amount, CurrencyCode)
+      INSERT INTO dbo.Payments (PaymentId, OrderId, ProviderCode, PaymentStatus, IdempotencyKey, Amount, CurrencyCode)
       OUTPUT inserted.*
       VALUES (@id, @orderId, @provider, @status, @idempotencyKey, @amount, @currency);
     `);
@@ -82,7 +82,7 @@ export async function markPaymentSucceeded({ providerOrderId, providerPaymentId 
       .input('providerOrderId', sql.NVarChar(200), providerOrderId)
       .query(`
         SELECT TOP 1 * FROM dbo.Payments WITH (UPDLOCK, ROWLOCK)
-        WHERE PaymentProvider = @provider AND ProviderOrderId = @providerOrderId
+        WHERE ProviderCode = @provider AND ProviderOrderId = @providerOrderId
         ORDER BY CreatedAtUtc DESC;
       `);
     const payment = paymentResult.recordset[0];
@@ -120,6 +120,14 @@ export async function markPaymentSucceeded({ providerOrderId, providerPaymentId 
         WHERE OrderId = @orderId AND PaymentStatus <> @paid;
       `);
 
+    await new sql.Request(transaction)
+      .input('orderId', sql.UniqueIdentifier, payment.OrderId)
+      .query(`DELETE ci FROM dbo.CartItems ci
+        INNER JOIN dbo.CheckoutSessions s ON s.CartId = ci.CartId
+        INNER JOIN dbo.Orders o ON o.CheckoutSessionId = s.CheckoutSessionId
+        INNER JOIN dbo.OrderItems oi ON oi.OrderId = o.OrderId AND oi.ProductVariantId = ci.ProductVariantId
+        WHERE o.OrderId = @orderId;`);
+
     await transaction.commit();
     return { payment: updatedPayment.recordset[0], idempotent: false };
   } catch (error) {
@@ -139,10 +147,10 @@ export async function markPaymentFailed({ providerOrderId, code, message }) {
       UPDATE dbo.Payments
       SET PaymentStatus = CASE WHEN PaymentStatus = 'SUCCEEDED' THEN PaymentStatus ELSE 'FAILED' END,
           FailureCode = @code,
-          FailureReason = @message,
+          FailureMessage = @message,
           UpdatedAtUtc = SYSUTCDATETIME()
       OUTPUT inserted.*
-      WHERE PaymentProvider = @provider AND ProviderOrderId = @providerOrderId;
+      WHERE ProviderCode = @provider AND ProviderOrderId = @providerOrderId;
     `);
   return result.recordset[0] ?? null;
 }
@@ -164,7 +172,6 @@ export async function insertWebhookEvent({ providerEventId, eventType, payloadJs
   const pool = await getPool();
   try {
     const result = await pool.request()
-      .input('id', sql.UniqueIdentifier, randomUUID())
       .input('provider', sql.VarChar(50), PAYMENT_PROVIDER.RAZORPAY)
       .input('eventId', sql.NVarChar(200), providerEventId)
       .input('eventType', sql.NVarChar(150), eventType)
@@ -172,10 +179,10 @@ export async function insertWebhookEvent({ providerEventId, eventType, payloadJs
       .input('payload', sql.NVarChar(sql.MAX), payloadJson)
       .query(`
         INSERT INTO dbo.PaymentWebhookEvents (
-          PaymentWebhookEventId, PaymentProvider, ProviderEventId, EventType, ProcessingStatus, PayloadJson, AttemptCount
+          ProviderCode, ProviderEventId, EventType, ProcessingStatus, PayloadJson, AttemptCount
         )
         OUTPUT inserted.*
-        VALUES (@id, @provider, @eventId, @eventType, @status, @payload, 1);
+        VALUES (@provider, @eventId, @eventType, @status, @payload, 1);
       `);
     return { event: result.recordset[0], duplicate: false };
   } catch (error) {
@@ -196,8 +203,8 @@ export async function completeWebhookEvent({ providerEventId, status, error }) {
     .query(`
       UPDATE dbo.PaymentWebhookEvents
       SET ProcessingStatus = @status,
-          ProcessingError = @error,
+          FailureMessage = @error,
           ProcessedAtUtc = CASE WHEN @status = 'PROCESSED' THEN SYSUTCDATETIME() ELSE ProcessedAtUtc END
-      WHERE PaymentProvider = @provider AND ProviderEventId = @eventId;
+      WHERE ProviderCode = @provider AND ProviderEventId = @eventId;
     `);
 }

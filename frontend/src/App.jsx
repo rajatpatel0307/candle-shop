@@ -17,8 +17,14 @@ import {
 } from './features/auth/index.js';
 import { getRoleHomePath, hasAnyRole } from './features/auth/utils/authRouting.js';
 import { CartPage, useCartMutations } from './features/cart/index.js';
+import { useCart } from './features/cart/hooks/useCart.js';
+import { CartQuantityControl } from './features/cart/components/CartQuantityControl.jsx';
+import { useWishlist } from './features/wishlist/hooks/useWishlist.js';
 import { CheckoutPage, OrderConfirmationPage, PaymentResultPage } from './features/checkout/index.js';
 import { OrderDetailsPage, OrderHistoryPage, OrderTrackingPage } from './features/orders/index.js';
+import { CustomerAccountLayout } from './features/account/CustomerAccountLayout.jsx';
+import { ProfilePage } from './features/account/ProfilePage.jsx';
+import { AddressesPage } from './features/account/AddressesPage.jsx';
 import { WishlistButton, WishlistPage } from './features/wishlist/index.js';
 import { AdminOrderDetailsPage, AdminOrdersPage, AdminRefundsPage, AdminShipmentsPage } from './admin/orders/index.js';
 import { AdminDashboardPage } from './admin/dashboard/index.js';
@@ -379,7 +385,7 @@ function AccountMenu({ onNavigate }) {
             <p className="truncate text-xs text-stone-500">{user.email}</p>
           </div>
           <Link
-            to={isStaff ? '/admin/profile' : getRoleHomePath(user)}
+            to={isStaff ? '/admin/profile' : '/account/profile'}
             className="flex items-center gap-2 px-4 py-2 text-stone-700 transition hover:bg-stone-50 hover:text-[#8d5132]"
             role="menuitem"
             onClick={() => {
@@ -388,8 +394,9 @@ function AccountMenu({ onNavigate }) {
             }}
           >
             <UserRound className="h-4 w-4" />
-            {isStaff ? 'Profile' : 'Home'}
+            My profile
           </Link>
+          {!isStaff && [['/orders', 'My orders'], ['/account/addresses', 'My addresses']].map(([to, label]) => <Link key={to} to={to} role="menuitem" className="block px-4 py-2 text-stone-700 hover:bg-stone-50" onClick={() => { setOpen(false); onNavigate?.(); }}>{label}</Link>)}
           <button
             type="button"
             className="flex w-full items-center gap-2 px-4 py-2 text-left font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -406,8 +413,25 @@ function AccountMenu({ onNavigate }) {
   );
 }
 
+function HeaderCountLink({ to, label, icon: Icon, count, pending, error, className = '' }) {
+  const countLabel = pending ? 'Loading count' : error ? 'Count unavailable' : `${count} items`;
+  return (
+    <Link to={to} className={`icon-btn relative ${className}`} aria-label={`${label}, ${countLabel}`} title={`${label}: ${countLabel}`}>
+      <Icon className="h-4 w-4" />
+      <span aria-live="polite" aria-atomic="true" className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#8d5132] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#f7f2ea]">
+        {pending ? '…' : error ? '?' : count}
+      </span>
+    </Link>
+  );
+}
+
 function Shell({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const cart = useCart();
+  const wishlist = useWishlist();
+  const cartCount = isAuthenticated ? Number(cart.data?.summary?.totalQuantity || 0) : 0;
+  const wishlistCount = isAuthenticated ? Number(wishlist.data?.summary?.totalItems || 0) : 0;
 
   return (
     <div className="min-h-screen bg-[#f7f2ea] text-[#2f2722]">
@@ -422,9 +446,9 @@ function Shell({ children }) {
           </nav>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <Link to="/wishlist" className="icon-btn hidden sm:inline-flex" aria-label="Wishlist"><Heart className="h-4 w-4" /></Link>
+            <HeaderCountLink to="/wishlist" label="Wishlist" icon={Heart} count={wishlistCount} pending={isAuthenticated && wishlist.isPending} error={isAuthenticated && wishlist.isError && !wishlist.data} className="hidden sm:inline-flex" />
             <AccountMenu onNavigate={() => setMenuOpen(false)} />
-            <Link to="/cart" className="icon-btn" aria-label="Cart"><ShoppingBag className="h-4 w-4" /></Link>
+            <HeaderCountLink to="/cart" label="Cart" icon={ShoppingBag} count={cartCount} pending={isAuthenticated && cart.isPending} error={isAuthenticated && cart.isError && !cart.data} />
             <button className="icon-btn md:hidden" type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
               {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </button>
@@ -433,7 +457,7 @@ function Shell({ children }) {
         {menuOpen && (
           <nav className="border-t border-stone-200 bg-[#f7f2ea] px-4 py-3 text-sm font-semibold md:hidden" aria-label="Mobile navigation">
             <div className="mx-auto grid max-w-7xl gap-1">
-              {[...primaryNav, { to: '/wishlist', label: 'Wishlist' }, { to: '/orders', label: 'Orders' }, { to: '/support/tickets', label: 'Support' }].map((item) => (
+              {[...primaryNav, { to: '/wishlist', label: `Wishlist (${isAuthenticated && wishlist.isPending ? '…' : isAuthenticated && wishlist.isError && !wishlist.data ? '?' : wishlistCount})` }, { to: '/orders', label: 'Orders' }, { to: '/support/tickets', label: 'Support' }].map((item) => (
                 <NavLink key={item.to} to={item.to} className={navClass} onClick={() => setMenuOpen(false)}>{item.label}</NavLink>
               ))}
             </div>
@@ -581,6 +605,9 @@ function ShopPage() {
 
 function ProductPage() {
   const { slug } = useParams();
+  const { isAuthenticated } = useAuth();
+  const cart = useCart({ enabled: isAuthenticated });
+  const [quantity, setQuantity] = useState(1);
   const cartActions = useCartMutations();
   const fallback = fallbackProducts.find((product) => product.Slug === slug) || fallbackProducts[0];
   const { data: product, isError } = useApiQuery(['product', slug], endpoints.product(slug), { ...fallback, variants: [], images: [{ ImageUrl: fallback.ImageUrl, AltText: fallback.ProductName }], specifications: [], reviews: [] });
@@ -589,11 +616,18 @@ function ProductPage() {
   const reviewMutation = useMutation({ mutationFn: (payload) => reviewsApi.create(product.ProductId, payload), onSuccess: () => { reviewSummary.refetch(); reviews.refetch(); } });
   const firstVariant = product?.variants?.[0];
   const availableQuantity = Number(firstVariant?.AvailableQuantity || 0);
-  const canAddToCart = Boolean(firstVariant?.ProductVariantId) && availableQuantity > 0;
+  const cartQuantity = Number(cart.data?.items?.find((item) => item.ProductVariantId?.toLowerCase() === firstVariant?.ProductVariantId?.toLowerCase())?.Quantity || 0);
+  const remainingQuantity = Math.max(0, Math.min(99, availableQuantity) - cartQuantity);
+  const selectedQuantity = Math.min(quantity, remainingQuantity);
+  const canAddToCart = Boolean(firstVariant?.ProductVariantId) && remainingQuantity > 0;
+  useEffect(() => {
+    setQuantity(1);
+    cartActions.add.reset();
+  }, [slug]);
   const addPayload = {
     productId: product?.ProductId,
     ...(firstVariant?.ProductVariantId ? { productVariantId: firstVariant.ProductVariantId } : {}),
-    quantity: 1,
+    quantity: selectedQuantity,
   };
 
   return (
@@ -608,13 +642,16 @@ function ProductPage() {
           <p className="mt-4 text-lg leading-8 text-stone-600">{product?.ShortDescription || product?.Description}</p>
           <p className="mt-6 text-2xl font-semibold">{currency(product?.variants?.[0]?.SellingPrice || product?.SellingPrice)}</p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <button className="btn-primary" disabled={cartActions.add.isPending || !product?.ProductId || !canAddToCart} onClick={() => cartActions.add.mutate(addPayload)}>
-              {cartActions.add.isPending ? 'Adding...' : canAddToCart ? 'Add to cart' : 'Unavailable'}
+            {canAddToCart && <CartQuantityControl value={selectedQuantity} max={remainingQuantity} disabled={cartActions.add.isPending} onChange={setQuantity} />}
+            <button className="btn-primary" disabled={cartActions.add.isPending || (isAuthenticated && cart.isPending) || !product?.ProductId || !canAddToCart} onClick={() => cartActions.add.mutate(addPayload)}>
+              {cartActions.add.isPending ? 'Adding...' : canAddToCart ? 'Add to cart' : cartQuantity > 0 && availableQuantity > 0 ? 'Cart limit reached' : 'Unavailable'}
             </button>
             <WishlistButton productId={product?.ProductId} productVariantId={firstVariant?.ProductVariantId} />
           </div>
           {!firstVariant && <p className="mt-3 text-sm text-amber-700">This product does not have a purchasable option yet.</p>}
           {firstVariant && availableQuantity <= 0 && <p className="mt-3 text-sm text-amber-700">This product is currently out of stock.</p>}
+          {firstVariant && availableQuantity > 0 && <p className="mt-3 text-sm text-stone-600" role="status">{availableQuantity} available in stock.{cartQuantity > 0 ? ` ${cartQuantity} already in your cart.` : ''}</p>}
+          {cartQuantity > 0 && remainingQuantity === 0 && availableQuantity > 0 && <p className="mt-2 text-sm text-amber-700">Your cart has reached the limit for this product. <Link to="/cart" className="underline">View cart</Link></p>}
           {cartActions.add.isError && <p className="mt-3 text-sm text-red-700">{cartActions.add.error?.response?.data?.error?.message || 'Could not add to cart.'}</p>}
           {cartActions.add.isSuccess && <p className="mt-3 text-sm text-green-700">Added to cart.</p>}
           {isError && <p className="mt-4 text-sm text-stone-600">Sample detail shown until this product exists in MSSQL.</p>}
@@ -867,7 +904,11 @@ function AppRoutes() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/sessions" element={<CustomerRoute><SessionManagementPage /></CustomerRoute>} />
-      <Route path="/account" element={<Navigate to="/" replace />} />
+      <Route path="/account" element={<Navigate to="/account/profile" replace />} />
+      <Route path="/account/profile" element={<CustomerRoute><Shell><CustomerAccountLayout><ProfilePage /></CustomerAccountLayout></Shell></CustomerRoute>} />
+      <Route path="/account/addresses" element={<CustomerRoute><Shell><CustomerAccountLayout><AddressesPage /></CustomerAccountLayout></Shell></CustomerRoute>} />
+      <Route path="/addresses" element={<Navigate to="/account/addresses" replace />} />
+      <Route path="/account/orders" element={<Navigate to="/orders" replace />} />
       <Route path="/notifications" element={<CustomerRoute><NotificationsPage /></CustomerRoute>} />
       <Route path="/account/reviews" element={<CustomerRoute><MyReviews /></CustomerRoute>} />
       <Route path="/support/tickets" element={<CustomerRoute><MyTickets /></CustomerRoute>} />
@@ -876,9 +917,9 @@ function AppRoutes() {
       <Route path="/checkout" element={<CustomerRoute><CheckoutPage /></CustomerRoute>} />
       <Route path="/payments/result" element={<CustomerRoute><PaymentResultPage /></CustomerRoute>} />
       <Route path="/orders/:orderId/confirmation" element={<CustomerRoute><OrderConfirmationPage /></CustomerRoute>} />
-      <Route path="/orders" element={<CustomerRoute><OrderHistoryPage /></CustomerRoute>} />
-      <Route path="/orders/:orderId" element={<CustomerRoute><OrderDetailsPage /></CustomerRoute>} />
-      <Route path="/orders/:orderId/tracking" element={<CustomerRoute><OrderTrackingPage /></CustomerRoute>} />
+      <Route path="/orders" element={<CustomerRoute><Shell><CustomerAccountLayout><OrderHistoryPage /></CustomerAccountLayout></Shell></CustomerRoute>} />
+      <Route path="/orders/:orderId" element={<CustomerRoute><Shell><CustomerAccountLayout><OrderDetailsPage /></CustomerAccountLayout></Shell></CustomerRoute>} />
+      <Route path="/orders/:orderId/tracking" element={<CustomerRoute><Shell><CustomerAccountLayout><OrderTrackingPage /></CustomerAccountLayout></Shell></CustomerRoute>} />
       <Route path="/wishlist" element={<CustomerRoute><WishlistPage /></CustomerRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
       <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />

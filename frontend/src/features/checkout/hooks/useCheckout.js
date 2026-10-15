@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDispatch, useSelector } from 'react-redux';
 import { checkoutApi } from '../api/checkoutApi.js';
 import { setCheckoutOrder, setCheckoutSession } from '../store/checkoutSlice.js';
+import { setCartSummary } from '../../cart/store/cartSlice.js';
+import { useAuth } from '../../auth/hooks/useAuth.js';
 
 function extract(response) {
   return response.data.data.checkout;
@@ -22,6 +24,7 @@ export function useCheckoutState() {
 export function useCheckoutMutations() {
   const queryClient = useQueryClient();
   const dispatch = useDispatch();
+  const { user } = useAuth();
   const refresh = (checkout) => {
     dispatch(setCheckoutSession(checkout.session.CheckoutSessionId));
     queryClient.setQueryData(['checkout', checkout.session.CheckoutSessionId], checkout);
@@ -54,7 +57,16 @@ export function useCheckoutMutations() {
     validate: useMutation({ mutationFn: (sessionId) => checkoutApi.validate(sessionId) }),
     submit: useMutation({
       mutationFn: ({ sessionId, payload }) => checkoutApi.submit(sessionId, payload),
-      onSuccess: (response) => dispatch(setCheckoutOrder(response.data.data.result.order.OrderId)),
+      onSuccess: async (response) => {
+        const { order, cart } = response.data.data.result;
+        dispatch(setCheckoutOrder(order.OrderId));
+        await queryClient.cancelQueries({ queryKey: ['cart', user?.id] });
+        if (cart) {
+          dispatch(setCartSummary(cart.summary));
+          queryClient.setQueryData(['cart', user?.id], cart);
+        }
+        queryClient.invalidateQueries({ queryKey: ['cart'] });
+      },
     }),
   };
 }

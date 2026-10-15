@@ -15,6 +15,12 @@ const checkoutSlice = createSlice({
       state.orderId = null;
     },
   },
+  extraReducers: (builder) => {
+    builder.addMatcher(
+      (action) => ['auth/logout/fulfilled', 'auth/login/fulfilled', 'auth/me/rejected'].includes(action.type),
+      (state) => { state.sessionId = null; state.orderId = null; },
+    );
+  },
 });
 
 export const { clearCheckout, setCheckoutOrder, setCheckoutSession } = checkoutSlice.actions;

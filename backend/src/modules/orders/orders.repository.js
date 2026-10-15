@@ -14,12 +14,18 @@ export async function listCustomerOrders(userId, query) {
     .input('limit', sql.Int, page.limit)
     .input('offset', sql.Int, page.offset);
   const where = ['o.UserId = @userId'];
+  if (query.search) {
+    request.input('search', sql.NVarChar(120), `%${query.search}%`);
+    where.push(`(o.OrderNumber LIKE @search OR EXISTS (SELECT 1 FROM dbo.OrderItems oi WHERE oi.OrderId=o.OrderId AND oi.ProductNameSnapshot LIKE @search))`);
+  }
   if (query.status) {
     request.input('status', sql.VarChar(30), query.status);
     where.push('o.OrderStatus = @status');
   }
   const result = await request.query(`
     SELECT o.*, COUNT(1) OVER() AS TotalRows,
+      (SELECT COALESCE(SUM(oi.Quantity),0) FROM dbo.OrderItems oi WHERE oi.OrderId=o.OrderId) AS ItemQuantity,
+      (SELECT TOP 1 oi.ProductNameSnapshot FROM dbo.OrderItems oi WHERE oi.OrderId=o.OrderId ORDER BY oi.OrderItemId) AS FirstProductName,
       (SELECT TOP 1 ShipmentStatus FROM dbo.Shipments s WHERE s.OrderId = o.OrderId ORDER BY s.CreatedAtUtc DESC) AS LatestShipmentStatus
     FROM dbo.Orders o
     WHERE ${where.join(' AND ')}
@@ -124,6 +130,21 @@ export async function updateOrderStatus({ orderId, nextStatus, userId, reason, s
       await transaction.commit();
       return order;
     }
+    if (nextStatus === ORDER_STATUS.CANCELLED && order.PaymentMethod === 'COD') {
+      await new sql.Request(transaction)
+        .input('orderId', sql.UniqueIdentifier, orderId)
+        .input('userId', sql.UniqueIdentifier, userId ?? null)
+        .query(`DECLARE @restored TABLE (VariantId uniqueidentifier, Quantity int, PreviousQuantity int, NewQuantity int);
+          UPDATE inv SET OnHandQuantity = inv.OnHandQuantity + oi.Quantity
+          OUTPUT inserted.ProductVariantId, inserted.OnHandQuantity - deleted.OnHandQuantity,
+            deleted.OnHandQuantity, inserted.OnHandQuantity INTO @restored
+          FROM dbo.Inventory inv INNER JOIN dbo.OrderItems oi ON oi.ProductVariantId = inv.ProductVariantId
+          WHERE oi.OrderId = @orderId;
+          INSERT INTO dbo.InventoryMovements (ProductVariantId, MovementType, QuantityChange, PreviousOnHandQuantity,
+            NewOnHandQuantity, ReferenceType, ReferenceId, CreatedByUserId, Notes)
+          SELECT VariantId, 'RETURN', Quantity, PreviousQuantity, NewQuantity, 'Order', @orderId, @userId,
+            N'Cash on delivery order cancelled.' FROM @restored;`);
+    }
     const updated = await new sql.Request(transaction)
       .input('orderId', sql.UniqueIdentifier, orderId)
       .input('status', sql.VarChar(30), nextStatus)
@@ -145,8 +166,8 @@ export async function updateOrderStatus({ orderId, nextStatus, userId, reason, s
       .input('userId', sql.UniqueIdentifier, userId ?? null)
       .input('notes', sql.NVarChar(500), `[${source}] ${reason || 'Status updated.'}`)
       .query(`
-        INSERT INTO dbo.OrderStatusHistory (OrderStatusHistoryId, OrderId, OldStatus, NewStatus, ChangedByUserId, Notes)
-        VALUES (@id, @orderId, @oldStatus, @newStatus, @userId, @notes);
+        INSERT INTO dbo.OrderStatusHistory (OrderId, PreviousStatus, NewStatus, ChangedByUserId, ChangeReason)
+        VALUES (@orderId, @oldStatus, @newStatus, @userId, @notes);
       `);
     await transaction.commit();
     return updated.recordset[0];

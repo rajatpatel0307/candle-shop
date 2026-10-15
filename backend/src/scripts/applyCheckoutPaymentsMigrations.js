@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { getPool, sql } from '../config/database.js';
+import { getPool } from '../config/database.js';
 
 function splitBatches(script) {
   return script
@@ -10,7 +9,7 @@ function splitBatches(script) {
 }
 
 async function applyCheckoutPaymentsMigrations() {
-  const filePath = resolve(process.cwd(), '../database/migrations/005_checkout_payments.sql');
+  const filePath = new URL('../../../database/migrations/005_checkout_payments.sql', import.meta.url);
   const script = await readFile(filePath, 'utf8');
   const pool = await getPool();
 
@@ -28,5 +27,5 @@ applyCheckoutPaymentsMigrations()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await sql.close();
+    await getPool().then((pool) => pool.close()).catch(() => {});
   });

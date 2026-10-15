@@ -19,7 +19,7 @@ export function CartItem({ item, actions }) {
         <div className="mt-4 flex items-center gap-3">
           <CartQuantityControl
             value={Number(item.Quantity)}
-            max={Math.max(Number(item.AvailableQuantity || 1), 1)}
+            max={Math.min(99, Math.max(Number(item.AvailableQuantity || 0), 1))}
             disabled={actions.update.isPending}
             onChange={(quantity) => actions.update.mutate({ itemId: item.CartItemId, quantity })}
           />
@@ -27,6 +27,16 @@ export function CartItem({ item, actions }) {
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
+        {Number(item.Quantity) >= Math.min(99, Number(item.AvailableQuantity || 0)) && (
+          <p className="mt-2 text-sm text-stone-500" role="status">
+            {Number(item.AvailableQuantity || 0) <= 99
+              ? `Only ${Number(item.AvailableQuantity || 0)} available in stock.`
+              : 'Maximum 99 per item.'}
+          </p>
+        )}
+        {actions.update.isError && String(actions.update.variables?.itemId) === String(item.CartItemId) && (
+          <p className="mt-2 text-sm text-red-700" role="alert">{actions.update.error?.response?.data?.error?.message || 'Could not update quantity. Please try again.'}</p>
+        )}
       </div>
       <div className="text-left sm:text-right">
         <p className="text-sm text-stone-500">Line total</p>

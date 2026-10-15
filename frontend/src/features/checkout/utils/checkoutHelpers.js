@@ -7,6 +7,9 @@ export function newIdempotencyKey() {
 }
 
 export function checkoutError(error, fallback = 'Something went wrong.') {
+  if (error && !error.response && (error.code === 'ERR_NETWORK' || error.message === 'Network Error')) {
+    return 'Unable to connect to checkout. Check your connection and try again.';
+  }
   return error?.response?.data?.error?.message || error?.message || fallback;
 }
 

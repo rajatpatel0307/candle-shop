@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto';
 import { AppError } from '../../common/errors/AppError.js';
 import { validateCart } from '../carts/carts.validation.service.js';
-import { createReservation } from '../inventory/inventory.service.js';
+import { getCart } from '../carts/carts.service.js';
+import { getPublicPaymentConfig } from '../payments/payments.gateway.service.js';
 import { DEFAULT_SESSION_MINUTES } from './checkout.constants.js';
 import * as repo from './checkout.repository.js';
 import { priceCheckout } from './checkout.pricing.service.js';
@@ -99,9 +99,19 @@ export async function validateSession(userId, sessionId) {
 
 export async function submit(userId, sessionId, input) {
   const existing = await repo.findOrderByIdempotencyKey({ userId, idempotencyKey: input.idempotencyKey });
-  if (existing) return { order: existing, idempotent: true };
+  if (existing) return { order: existing, idempotent: true, cart: await getCart(userId) };
 
   const session = await requireSession(userId, sessionId);
+  if (session.OrderId) {
+    const order = await repo.findOrderForSession({ userId, sessionId });
+    if (order) return { order, idempotent: true, cart: await getCart(userId) };
+  }
+  if (!['ACTIVE', 'OPEN'].includes(String(session.SessionStatus).toUpperCase()) || new Date(session.ExpiresAtUtc) <= new Date()) {
+    throw new AppError(409, 'CHECKOUT_SESSION_INACTIVE', 'This checkout has expired. Start a new checkout.');
+  }
+  if (input.paymentMethod === 'ONLINE' && !getPublicPaymentConfig().available) {
+    throw new AppError(503, 'PAYMENT_PROVIDER_NOT_CONFIGURED', 'Online payment is currently unavailable. Choose cash on delivery.');
+  }
   const { shippingAddress, billingAddress } = await getSessionAddresses(userId, session);
   const validation = await validateSession(userId, sessionId);
   if (!validation.isValid) throw new AppError(409, 'CHECKOUT_INVALID', 'Checkout is not ready to submit.', validation);
@@ -113,26 +123,15 @@ export async function submit(userId, sessionId, input) {
     shippingAddress,
     billingAddress,
     idempotencyKey: input.idempotencyKey,
+    paymentMethod: input.paymentMethod,
   });
 
-  if (!result.idempotent) {
-    for (const item of validation.pricing.items) {
-      await createReservation({
-        productVariantId: item.ProductVariantId,
-        quantity: Number(item.Quantity),
-        cartId: validation.pricing.cartId,
-        orderId: result.order.OrderId,
-        idempotencyKey: randomUUID(),
-      }, userId);
-    }
-  }
-
-  return { order: result.order, idempotent: result.idempotent };
+  return { order: result.order, idempotent: result.idempotent, cart: await getCart(userId) };
 }
 
 export async function enrichSession(userId, session, idempotent = false) {
   const addresses = await repo.listUserAddresses(userId);
   const { shippingAddress, billingAddress } = await getSessionAddresses(userId, session);
   const pricing = await priceCheckout({ userId, session, shippingAddress });
-  return { session, addresses, shippingAddress, billingAddress, pricing, idempotent };
+  return { session, addresses, shippingAddress, billingAddress, pricing, idempotent, paymentConfig: getPublicPaymentConfig() };
 }

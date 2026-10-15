@@ -22,22 +22,13 @@ function safeCompare(a, b) {
 
 export function getPublicPaymentConfig() {
   const config = getRazorpayConfig();
-  return { provider: PAYMENT_PROVIDER.RAZORPAY, keyId: config.keyId || null };
+  return { provider: PAYMENT_PROVIDER.RAZORPAY, keyId: config.keyId || null, available: Boolean(config.keyId && config.keySecret) };
 }
 
 export async function createPayment({ order, payment, idempotencyKey }) {
   const config = getRazorpayConfig();
   if (!config.keyId || !config.keySecret) {
-    return {
-      provider: PAYMENT_PROVIDER.RAZORPAY,
-      mode: 'MANUAL',
-      providerOrderId: `local_${payment.PaymentId}`,
-      keyId: null,
-      amount: toPaise(order.GrandTotal),
-      currency: order.CurrencyCode,
-      orderReference: order.OrderNumber,
-      message: 'Razorpay credentials are not configured. Payment can be tested only after setting RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.',
-    };
+    throw new AppError(503, 'PAYMENT_PROVIDER_NOT_CONFIGURED', 'Online payment is currently unavailable. Choose cash on delivery.');
   }
 
   const auth = Buffer.from(`${config.keyId}:${config.keySecret}`).toString('base64');

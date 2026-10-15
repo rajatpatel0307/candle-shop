@@ -14,7 +14,8 @@
     "db:migrate:admin-dashboard": "node src/scripts/applyAdminDashboardMigrations.js",
     "db:migrate:customer-engagement": "node src/scripts/applyCustomerEngagementMigrations.js",
     "db:migrate:website-content": "node src/scripts/applyWebsiteContentMigrations.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:checkout:integration": "node --test tests/checkout.integration.test.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

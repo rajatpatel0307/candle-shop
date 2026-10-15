@@ -2,6 +2,7 @@ import { apiClient } from '../../../services/apiClient.js';
 import { endpoints } from '../../../services/endpoints.js';
 
 export const checkoutApi = {
+  createAddress: (payload) => apiClient.post('/checkout/addresses', payload),
   createSession: (payload = {}) => apiClient.post(endpoints.checkout.session, payload),
   getSession: (id) => apiClient.get(endpoints.checkout.byId(id)),
   updateAddresses: (id, payload) => apiClient.put(endpoints.checkout.addresses(id), payload),

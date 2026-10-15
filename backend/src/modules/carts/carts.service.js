@@ -46,7 +46,7 @@ export async function addItem(userId, input) {
 export async function updateItem(userId, itemId, input) {
   const cart = await repo.getOrCreateActiveCart(userId);
   const items = await repo.listCartItems(cart.CartId);
-  const item = items.find((row) => row.CartItemId === itemId);
+  const item = items.find((row) => String(row.CartItemId) === String(itemId));
   if (!item) throw new AppError(404, 'CART_ITEM_NOT_FOUND', 'Cart item was not found.');
   if (item.ProductStatus !== 'Active' || !item.IsActive) throw new AppError(409, 'PRODUCT_UNAVAILABLE', 'Product is unavailable.');
   if (Number(item.AvailableQuantity || 0) < Number(input.quantity)) {

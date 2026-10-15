@@ -54,6 +54,9 @@ const authSlice = createSlice({
     pendingVerificationEmail: null,
   },
   reducers: {
+    setCurrentUser(state, action) {
+      state.user = action.payload;
+    },
     clearAuthError(state) {
       state.error = null;
       state.errorCode = null;
@@ -128,5 +131,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearAuthError } = authSlice.actions;
+export const { clearAuthError, setCurrentUser } = authSlice.actions;
 export default authSlice.reducer;

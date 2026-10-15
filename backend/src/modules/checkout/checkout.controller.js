@@ -1,6 +1,8 @@
 import * as service from './checkout.service.js';
+import { createUserAddress } from './checkout.repository.js';
 import {
   addressSelectionSchema,
+  createAddressSchema,
   createSessionSchema,
   discountSchema,
   sessionIdSchema,
@@ -8,6 +10,11 @@ import {
   submitCheckoutSchema,
 } from './checkout.validation.js';
 import { ok, validate } from '../carts/carts.utils.js';
+
+export async function createAddress(req, res) {
+  const address = await createUserAddress(req.user.id, validate(createAddressSchema, req.body));
+  ok(res.status(201), 'Delivery address saved.', { address });
+}
 
 export async function createSession(req, res) {
   ok(res.status(201), 'Checkout session created.', {

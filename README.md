@@ -46,4 +46,21 @@ The project is now wired as a runnable baseline against the provided MSSQL schem
    npm run dev:frontend
    ```
 
+Apply the checkout compatibility migration to the supplied baseline database before using checkout:
+```bash
+npm --prefix backend run db:migrate:checkout-payments
+```
+It adds the checkout address references and compatibility fields while preserving existing data.
+Cash on delivery supports placing and confirming an order without a payment gateway.
+Online payments require `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in `backend/.env`, and
+`RAZORPAY_WEBHOOK_SECRET` for signed provider webhook events. Restart the backend after setting them.
+
+To run the database checkout regression test in PowerShell:
+```powershell
+$env:RUN_CHECKOUT_DB_TESTS='1'
+npm --prefix backend run test:checkout:integration
+```
+This creates isolated test fixtures, exercises order creation/cancellation and locally signed payment
+verification, and removes the fixtures afterward. It does not contact Razorpay or charge money.
+
 The Vite dev server proxies `/api` to `http://localhost:3000`.

@@ -5,6 +5,7 @@ import { requireCustomer } from './checkout.policy.js';
 import {
   applyDiscount,
   createSession,
+  createAddress,
   getSession,
   getSummary,
   removeDiscount,
@@ -17,6 +18,7 @@ import {
 const router = Router();
 
 router.use(authenticate, requireCustomer);
+router.post('/addresses', asyncHandler(createAddress));
 
 router.post('/session', asyncHandler(createSession));
 router.get('/session/:id', asyncHandler(getSession));

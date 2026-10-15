@@ -8,6 +8,7 @@ export function usePaymentStatus(orderId) {
     queryFn: async () => (await paymentsApi.status(orderId)).data.data.payment,
     refetchInterval: (query) => {
       const status = query.state.data?.order?.PaymentStatus;
+      if (query.state.data?.order?.PaymentMethod === 'COD') return false;
       return status && !['SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED'].includes(status) ? 5000 : false;
     },
   });

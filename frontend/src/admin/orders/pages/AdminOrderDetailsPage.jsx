@@ -13,11 +13,13 @@ export function AdminOrderDetailsPage() {
   const query = useAdminOrder(orderId);
   const actions = useAdminOrderActions(orderId);
   const details = query.data;
+  const actionError = Object.values(actions).find((action) => action.isError)?.error;
   return (
     <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <Link className="text-sm font-semibold text-[#8d5132]" to="/admin/orders">Back to admin orders</Link>
       <h1 className="mt-3 text-4xl font-semibold">{details?.order?.OrderNumber || 'Order'}</h1>
       {query.isLoading && <p className="mt-5">Loading order...</p>}
+      {(query.isError || actionError) && <p role="alert" className="mt-5 rounded-md bg-red-50 p-4 text-sm text-red-700">{(actionError || query.error)?.response?.data?.error?.message || 'Could not load or update the order. Please try again.'}{query.isError && <button type="button" className="ml-3 underline" onClick={() => query.refetch()}>Try again</button>}</p>}
       {details && (
         <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
           <div className="grid gap-5">

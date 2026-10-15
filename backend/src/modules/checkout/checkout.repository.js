@@ -1,9 +1,19 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { getPool, sql } from '../../config/database.js';
 import { CHECKOUT_STATUS, ORDER_STATUS, PAYMENT_STATUS, ADDRESS_TYPE } from './checkout.constants.js';
+import { AppError } from '../../common/errors/AppError.js';
 
 export function requestHash(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
+export async function findOrderForSession({ userId, sessionId }) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('userId', sql.UniqueIdentifier, userId)
+    .input('sessionId', sql.UniqueIdentifier, sessionId)
+    .query('SELECT TOP 1 * FROM dbo.Orders WHERE UserId = @userId AND CheckoutSessionId = @sessionId;');
+  return result.recordset[0] ?? null;
 }
 
 export async function createSession({ userId, cartId, idempotencyKey, expiresAt }) {
@@ -57,6 +67,31 @@ export async function listUserAddresses(userId) {
   return result.recordset;
 }
 
+export async function createUserAddress(userId, input) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('id', sql.UniqueIdentifier, randomUUID())
+    .input('userId', sql.UniqueIdentifier, userId)
+    .input('label', sql.NVarChar(50), input.addressLabel)
+    .input('name', sql.NVarChar(150), input.recipientName)
+    .input('phone', sql.NVarChar(30), input.phoneNumber)
+    .input('line1', sql.NVarChar(200), input.addressLine1)
+    .input('line2', sql.NVarChar(200), input.addressLine2 || null)
+    .input('locality', sql.NVarChar(120), input.locality || null)
+    .input('city', sql.NVarChar(100), input.city)
+    .input('state', sql.NVarChar(100), input.stateOrProvince)
+    .input('postal', sql.NVarChar(20), input.postalCode)
+    .input('country', sql.Char(2), input.countryCode)
+    .query(`
+      INSERT INTO dbo.UserAddresses (AddressId, UserId, AddressLabel, RecipientName, PhoneNumber,
+        AddressLine1, AddressLine2, Locality, City, StateOrProvince, PostalCode, CountryCode,
+        IsDefaultShipping, IsDefaultBilling)
+      OUTPUT inserted.*
+      VALUES (@id, @userId, @label, @name, @phone, @line1, @line2, @locality, @city, @state, @postal, @country, 0, 0);
+    `);
+  return result.recordset[0];
+}
+
 export async function updateAddresses({ sessionId, userId, shippingAddressId, billingAddressId }) {
   const pool = await getPool();
   const result = await pool.request()
@@ -70,7 +105,7 @@ export async function updateAddresses({ sessionId, userId, shippingAddressId, bi
           BillingAddressId = @billingAddressId,
           UpdatedAtUtc = SYSUTCDATETIME()
       OUTPUT inserted.*
-      WHERE CheckoutSessionId = @sessionId AND UserId = @userId AND SessionStatus = 'ACTIVE';
+      WHERE CheckoutSessionId = @sessionId AND UserId = @userId AND SessionStatus IN ('ACTIVE', 'Open') AND ExpiresAtUtc > SYSUTCDATETIME();
     `);
   return result.recordset[0] ?? null;
 }
@@ -80,7 +115,7 @@ export async function updateShippingMethod({ sessionId, userId, shippingMethodId
   const result = await pool.request()
     .input('sessionId', sql.UniqueIdentifier, sessionId)
     .input('userId', sql.UniqueIdentifier, userId)
-    .input('shippingMethodId', sql.UniqueIdentifier, shippingMethodId ?? null)
+    .input('shippingMethodId', sql.Int, shippingMethodId ?? null)
     .query(`
       UPDATE dbo.CheckoutSessions
       SET ShippingMethodId = @shippingMethodId,
@@ -116,7 +151,7 @@ export async function findOrderByIdempotencyKey({ userId, idempotencyKey }) {
   return result.recordset[0] ?? null;
 }
 
-export async function createOrderTransaction({ userId, session, pricing, shippingAddress, billingAddress, idempotencyKey }) {
+export async function createOrderTransaction({ userId, session, pricing, shippingAddress, billingAddress, idempotencyKey, paymentMethod = 'ONLINE' }) {
   const pool = await getPool();
   const transaction = new sql.Transaction(pool);
   await transaction.begin();
@@ -130,15 +165,27 @@ export async function createOrderTransaction({ userId, session, pricing, shippin
       return { order: existing.recordset[0], idempotent: true };
     }
 
+    const locked = await new sql.Request(transaction)
+      .input('sessionId', sql.UniqueIdentifier, session.CheckoutSessionId)
+      .input('userId', sql.UniqueIdentifier, userId)
+      .query(`SELECT s.*, c.CartStatus FROM dbo.CheckoutSessions s WITH (UPDLOCK, HOLDLOCK)
+        INNER JOIN dbo.Carts c WITH (UPDLOCK, HOLDLOCK) ON c.CartId = s.CartId
+        WHERE s.CheckoutSessionId = @sessionId AND s.UserId = @userId;`);
+    const current = locked.recordset[0];
+    if (!current || !['ACTIVE', 'OPEN'].includes(String(current.SessionStatus).toUpperCase()) || String(current.CartStatus).toUpperCase() !== 'ACTIVE' || new Date(current.ExpiresAtUtc) <= new Date()) {
+      throw new AppError(409, 'CHECKOUT_SESSION_INACTIVE', 'This checkout has expired or has already been submitted. Start a new checkout.');
+    }
+
     const orderId = randomUUID();
     const orderNumber = `CAN-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
     const order = await new sql.Request(transaction)
       .input('orderId', sql.UniqueIdentifier, orderId)
       .input('orderNumber', sql.NVarChar(30), orderNumber)
       .input('userId', sql.UniqueIdentifier, userId)
-      .input('cartId', sql.UniqueIdentifier, pricing.cartId)
+      .input('sessionId', sql.UniqueIdentifier, session.CheckoutSessionId)
+      .input('paymentMethod', sql.NVarChar(30), paymentMethod)
       .input('currency', sql.Char(3), pricing.currencyCode)
-      .input('orderStatus', sql.VarChar(30), ORDER_STATUS.PENDING_PAYMENT)
+      .input('orderStatus', sql.VarChar(30), paymentMethod === 'COD' ? ORDER_STATUS.CONFIRMED : ORDER_STATUS.PENDING_PAYMENT)
       .input('paymentStatus', sql.VarChar(30), PAYMENT_STATUS.PENDING)
       .input('subtotal', sql.Decimal(18, 2), pricing.subtotal)
       .input('discount', sql.Decimal(18, 2), pricing.discountAmount)
@@ -148,19 +195,51 @@ export async function createOrderTransaction({ userId, session, pricing, shippin
       .input('idempotencyKey', sql.UniqueIdentifier, idempotencyKey)
       .query(`
         INSERT INTO dbo.Orders (
-          OrderId, OrderNumber, UserId, CartId, CurrencyCode, OrderStatus, PaymentStatus,
-          SubtotalAmount, DiscountAmount, ShippingAmount, TaxAmount, GrandTotal, IdempotencyKey
+          OrderId, OrderNumber, UserId, CheckoutSessionId, CurrencyCode, OrderStatus, PaymentStatus,
+          Subtotal, DiscountTotal, ShippingTotal, TaxTotal, GrandTotal, IdempotencyKey, PaymentMethod
         )
         OUTPUT inserted.*
         VALUES (
-          @orderId, @orderNumber, @userId, @cartId, @currency, @orderStatus, @paymentStatus,
-          @subtotal, @discount, @shipping, @tax, @total, @idempotencyKey
+          @orderId, @orderNumber, @userId, @sessionId, @currency, @orderStatus, @paymentStatus,
+          @subtotal, @discount, @shipping, @tax, @total, @idempotencyKey, @paymentMethod
         );
       `);
 
-    for (const item of pricing.items) {
+    for (const item of [...pricing.items].sort((a, b) => a.ProductVariantId.localeCompare(b.ProductVariantId))) {
+      // Allocate stock in the same transaction as the order, so a failure leaves no partial order.
+      const allocated = await new sql.Request(transaction)
+        .input('variantId', sql.UniqueIdentifier, item.ProductVariantId)
+        .input('quantity', sql.Int, item.Quantity)
+        .query(`UPDATE dbo.Inventory WITH (UPDLOCK)
+          SET ${paymentMethod === 'COD' ? 'OnHandQuantity = OnHandQuantity - @quantity' : 'ReservedQuantity = ReservedQuantity + @quantity'}
+          OUTPUT deleted.OnHandQuantity AS PreviousQuantity, inserted.OnHandQuantity AS NewQuantity
+          WHERE ProductVariantId = @variantId AND OnHandQuantity - ReservedQuantity >= @quantity;`);
+      if (!allocated.recordset.length) throw new AppError(409, 'INSUFFICIENT_STOCK', 'An item is no longer available in the requested quantity. Update your cart and try again.');
+      if (paymentMethod === 'COD') {
+        await new sql.Request(transaction)
+          .input('variantId', sql.UniqueIdentifier, item.ProductVariantId)
+          .input('quantity', sql.Int, -item.Quantity)
+          .input('previous', sql.Int, allocated.recordset[0].PreviousQuantity)
+          .input('next', sql.Int, allocated.recordset[0].NewQuantity)
+          .input('orderId', sql.UniqueIdentifier, orderId)
+          .input('userId', sql.UniqueIdentifier, userId)
+          .query(`INSERT INTO dbo.InventoryMovements (ProductVariantId, MovementType, QuantityChange,
+            PreviousOnHandQuantity, NewOnHandQuantity, ReferenceType, ReferenceId, CreatedByUserId, Notes)
+            VALUES (@variantId, 'ORDER_DEDUCTION', @quantity, @previous, @next, 'Order', @orderId, @userId, N'Cash on delivery order placed.');`);
+      } else {
+        await new sql.Request(transaction)
+          .input('id', sql.UniqueIdentifier, randomUUID())
+          .input('variantId', sql.UniqueIdentifier, item.ProductVariantId)
+          .input('orderId', sql.UniqueIdentifier, orderId)
+          .input('sessionId', sql.UniqueIdentifier, session.CheckoutSessionId)
+          .input('cartId', sql.UniqueIdentifier, pricing.cartId)
+          .input('quantity', sql.Int, item.Quantity)
+          .input('userId', sql.UniqueIdentifier, userId)
+          .query(`INSERT INTO dbo.InventoryReservations (InventoryReservationId, ProductVariantId, OrderId,
+            CheckoutSessionId, CartId, Quantity, ReservationStatus, ExpiresAtUtc, CreatedByUserId)
+            VALUES (@id, @variantId, @orderId, @sessionId, @cartId, @quantity, 'ACTIVE', DATEADD(minute, 30, SYSUTCDATETIME()), @userId);`);
+      }
       await new sql.Request(transaction)
-        .input('id', sql.UniqueIdentifier, randomUUID())
         .input('orderId', sql.UniqueIdentifier, orderId)
         .input('variantId', sql.UniqueIdentifier, item.ProductVariantId)
         .input('sku', sql.NVarChar(100), item.SKU ?? null)
@@ -171,10 +250,10 @@ export async function createOrderTransaction({ userId, session, pricing, shippin
         .input('lineTotal', sql.Decimal(18, 2), item.LineTotal)
         .query(`
           INSERT INTO dbo.OrderItems (
-            OrderItemId, OrderId, ProductVariantId, SKU, ProductNameSnapshot,
+            OrderId, ProductVariantId, SKUSnapshot, ProductNameSnapshot,
             VariantNameSnapshot, UnitPrice, Quantity, DiscountAmount, TaxAmount, LineTotal
           )
-          VALUES (@id, @orderId, @variantId, @sku, @name, @variant, @unitPrice, @quantity, 0, 0, @lineTotal);
+          VALUES (@orderId, @variantId, @sku, @name, @variant, @unitPrice, @quantity, 0, 0, @lineTotal);
         `);
     }
 
@@ -182,13 +261,12 @@ export async function createOrderTransaction({ userId, session, pricing, shippin
     await insertOrderAddress(transaction, orderId, ADDRESS_TYPE.BILLING, billingAddress);
 
     await new sql.Request(transaction)
-      .input('id', sql.UniqueIdentifier, randomUUID())
       .input('orderId', sql.UniqueIdentifier, orderId)
-      .input('status', sql.VarChar(30), ORDER_STATUS.PENDING_PAYMENT)
+      .input('status', sql.VarChar(30), paymentMethod === 'COD' ? ORDER_STATUS.CONFIRMED : ORDER_STATUS.PENDING_PAYMENT)
       .input('userId', sql.UniqueIdentifier, userId)
       .query(`
-        INSERT INTO dbo.OrderStatusHistory (OrderStatusHistoryId, OrderId, OldStatus, NewStatus, ChangedByUserId, Notes)
-        VALUES (@id, @orderId, NULL, @status, @userId, N'Order created from checkout.');
+        INSERT INTO dbo.OrderStatusHistory (OrderId, PreviousStatus, NewStatus, ChangedByUserId, ChangeReason)
+        VALUES (@orderId, NULL, @status, @userId, N'Order created from checkout.');
       `);
 
     await new sql.Request(transaction)
@@ -208,6 +286,15 @@ export async function createOrderTransaction({ userId, session, pricing, shippin
       .input('cartId', sql.UniqueIdentifier, pricing.cartId)
       .query("UPDATE dbo.Carts SET CartStatus = 'Converted', UpdatedAtUtc = SYSUTCDATETIME() WHERE CartId = @cartId;");
 
+    if (paymentMethod === 'COD') {
+      await new sql.Request(transaction)
+        .input('cartId', sql.UniqueIdentifier, pricing.cartId)
+        .input('orderId', sql.UniqueIdentifier, orderId)
+        .query(`DELETE ci FROM dbo.CartItems ci
+          INNER JOIN dbo.OrderItems oi ON oi.ProductVariantId = ci.ProductVariantId AND oi.OrderId = @orderId
+          WHERE ci.CartId = @cartId;`);
+    }
+
     await transaction.commit();
     return { order: order.recordset[0], idempotent: false };
   } catch (error) {
@@ -218,7 +305,6 @@ export async function createOrderTransaction({ userId, session, pricing, shippin
 
 async function insertOrderAddress(transaction, orderId, type, address) {
   await new sql.Request(transaction)
-    .input('id', sql.UniqueIdentifier, randomUUID())
     .input('orderId', sql.UniqueIdentifier, orderId)
     .input('type', sql.VarChar(20), type)
     .input('name', sql.NVarChar(150), address.RecipientName)
@@ -232,9 +318,9 @@ async function insertOrderAddress(transaction, orderId, type, address) {
     .input('country', sql.Char(2), address.CountryCode)
     .query(`
       INSERT INTO dbo.OrderAddresses (
-        OrderAddressId, OrderId, AddressType, RecipientName, PhoneNumber, AddressLine1,
+        OrderId, AddressType, RecipientName, PhoneNumber, AddressLine1,
         AddressLine2, Locality, City, StateOrProvince, PostalCode, CountryCode
       )
-      VALUES (@id, @orderId, @type, @name, @phone, @line1, @line2, @locality, @city, @state, @postal, @country);
+      VALUES (@orderId, @type, @name, @phone, @line1, @line2, @locality, @city, @state, @postal, @country);
     `);
 }

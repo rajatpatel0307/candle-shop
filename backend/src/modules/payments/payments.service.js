@@ -12,6 +12,8 @@ async function requireOrder(userId, orderId) {
 
 export async function createIntent(userId, orderId, input) {
   const order = await requireOrder(userId, orderId);
+  if (order.PaymentMethod === 'COD') throw new AppError(409, 'CASH_ON_DELIVERY', 'Payment will be collected on delivery.');
+  if (!gateway.getPublicPaymentConfig().available) throw new AppError(503, 'PAYMENT_PROVIDER_NOT_CONFIGURED', 'Online payment is currently unavailable.');
   if (order.PaymentStatus === PAYMENT_STATUS.SUCCEEDED) {
     throw new AppError(409, 'ORDER_ALREADY_PAID', 'This order is already paid.');
   }
@@ -46,7 +48,11 @@ export async function getStatus(userId, orderId) {
 }
 
 export async function verify(userId, orderId, input) {
-  await requireOrder(userId, orderId);
+  const order = await requireOrder(userId, orderId);
+  const payment = await repo.getLatestPayment(orderId);
+  if (order.PaymentMethod === 'COD' || !payment || payment.ProviderOrderId !== input.providerOrderId) {
+    throw new AppError(400, 'PAYMENT_ORDER_MISMATCH', 'Payment does not belong to this order.');
+  }
   const isValid = gateway.verifyPaymentSignature(input);
   if (!isValid) throw new AppError(400, 'INVALID_PAYMENT_SIGNATURE', 'Payment signature is invalid.');
   const result = await repo.markPaymentSucceeded({

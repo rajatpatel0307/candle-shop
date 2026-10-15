@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ordersApi } from '../api/ordersApi.js';
+import { useAuth } from '../../auth/hooks/useAuth.js';
 
 export function useOrders(params = {}) {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ['orders', params],
+    queryKey: ['orders', user?.id, params],
+    enabled: Boolean(user),
     queryFn: async () => (await ordersApi.list(params)).data.data.orders,
   });
 }
