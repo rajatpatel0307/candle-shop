@@ -1,4 +1,5 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { OrderDetails } from '../components/OrderDetails.jsx';
 import { useOrderDetails } from '../hooks/useOrderDetails.js';
 import { useOrderActions } from '../hooks/useOrders.js';
@@ -9,6 +10,10 @@ export function OrderDetailsPage() {
   const { orderId } = useParams();
   const query = useOrderDetails(orderId);
   const actions = useOrderActions(orderId);
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash === '#reviews' && query.data) document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [hash, Boolean(query.data)]);
   return (
     <main>
       <Link className="text-sm font-semibold text-[#8d5132]" to="/orders">Back to orders</Link>

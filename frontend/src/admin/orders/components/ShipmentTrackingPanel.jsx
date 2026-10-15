@@ -1,13 +1,10 @@
-export function ShipmentTrackingPanel({ shipments = [], onDispatch }) {
-  return (
-    <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
-      <h2 className="text-xl font-semibold">Shipments</h2>
-      {shipments.map((shipment) => (
-        <div key={shipment.ShipmentId} className="mt-3 rounded-md border border-stone-200 p-3 text-sm">
-          <strong>{shipment.ShipmentNumber}</strong><p>{shipment.CarrierName} {shipment.TrackingNumber} {shipment.ShipmentStatus}</p>
-          <button className="mt-2 text-[#8d5132] underline" onClick={() => onDispatch(shipment.ShipmentId)}>Dispatch</button>
-        </div>
-      ))}
-    </section>
-  );
+import { useState } from 'react';
+const transitions = { CREATED:['LABEL_CREATED','PICKED_UP','IN_TRANSIT','CANCELLED'],LABEL_CREATED:['PICKED_UP','IN_TRANSIT','CANCELLED'],PICKED_UP:['IN_TRANSIT','OUT_FOR_DELIVERY','DELIVERY_FAILED'],IN_TRANSIT:['OUT_FOR_DELIVERY','DELIVERED','DELIVERY_FAILED','RETURN_TO_SENDER'],OUT_FOR_DELIVERY:['DELIVERED','DELIVERY_FAILED','RETURN_TO_SENDER'],DELIVERY_FAILED:['IN_TRANSIT','RETURN_TO_SENDER'] };
+function ShipmentCard({shipment,onDispatch,onTrack,pending}) {
+  const options = transitions[shipment.ShipmentStatus] || [];
+  const [status,setStatus] = useState(options[0] || '');
+  const [description,setDescription] = useState('');
+  const [location,setLocation] = useState('');
+  return <article className="mt-4 rounded-xl border border-stone-200 p-4 text-sm"><div className="flex flex-wrap justify-between gap-3"><div><h3 className="font-semibold">{shipment.ShipmentNumber}</h3><p className="mt-1 text-stone-500">{shipment.CarrierName} / {shipment.TrackingNumber || 'Tracking number not assigned'}</p></div><span className="h-fit rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold">{shipment.ShipmentStatus.replaceAll('_',' ')}</span></div>{['CREATED','LABEL_CREATED'].includes(shipment.ShipmentStatus) && <button className="btn-secondary mt-4" disabled={pending} onClick={() => onDispatch(shipment.ShipmentId)}>Dispatch shipment</button>}{options.length > 0 && onTrack && <form className="mt-5 grid gap-3 sm:grid-cols-2" onSubmit={(event) => {event.preventDefault();onTrack({shipmentId:shipment.ShipmentId,payload:{trackingStatus:status,eventDescription:description || undefined,eventLocation:location || undefined}});}}><label className="text-xs font-semibold text-stone-500">Tracking status<select className="input mt-2" value={status} onChange={(event) => setStatus(event.target.value)}>{options.map((option) => <option key={option}>{option}</option>)}</select></label><label className="text-xs font-semibold text-stone-500">Location<input className="input mt-2" maxLength={200} value={location} onChange={(event) => setLocation(event.target.value)} /></label><label className="text-xs font-semibold text-stone-500 sm:col-span-2">Tracking note<input className="input mt-2" maxLength={500} value={description} onChange={(event) => setDescription(event.target.value)} /></label><button className="btn-secondary sm:col-span-2" disabled={pending}>Save tracking update</button></form>}</article>;
 }
+export function ShipmentTrackingPanel({shipments=[],onDispatch,onTrack,pending}) {return <section className="admin-panel"><h2 className="text-lg font-semibold">Shipments and tracking</h2>{!shipments.length && <p className="mt-4 text-sm text-stone-500">No shipments created yet.</p>}{shipments.map((shipment) => <ShipmentCard key={`${shipment.ShipmentId}-${shipment.ShipmentStatus}`} shipment={shipment} onDispatch={onDispatch} onTrack={onTrack} pending={pending} />)}</section>;}

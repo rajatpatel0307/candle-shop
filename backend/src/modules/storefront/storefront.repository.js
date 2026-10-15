@@ -110,13 +110,13 @@ export async function getProduct(slug) {
       ORDER BY v.SellingPrice;
     `),
     pool.request().input('productId', sql.UniqueIdentifier, row.ProductId).query(`
-      SELECT ImageUrl, AltText, DisplayOrder, IsPrimary FROM dbo.ProductImages WHERE ProductId = @productId ORDER BY DisplayOrder;
+      SELECT ProductVariantId, ImageUrl, AltText, DisplayOrder, IsPrimary FROM dbo.ProductImages WHERE ProductId = @productId ORDER BY IsPrimary DESC, DisplayOrder;
     `),
     pool.request().input('productId', sql.UniqueIdentifier, row.ProductId).query(`
       SELECT SpecificationName, SpecificationValue FROM dbo.ProductSpecifications WHERE ProductId = @productId ORDER BY DisplayOrder;
     `),
     pool.request().input('productId', sql.UniqueIdentifier, row.ProductId).query(`
-      SELECT TOP 8 Rating, ReviewTitle, ReviewText, CreatedAtUtc FROM dbo.ProductReviews WHERE ProductId = @productId AND ReviewStatus = N'Published' ORDER BY CreatedAtUtc DESC;
+      SELECT TOP 8 Rating, ReviewTitle, ReviewText, CreatedAtUtc FROM dbo.ProductReviews WHERE ProductId = @productId AND ReviewStatus IN ('APPROVED', 'Published') ORDER BY CreatedAtUtc DESC;
     `),
   ]);
 

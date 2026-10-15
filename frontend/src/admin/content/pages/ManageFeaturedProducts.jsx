@@ -1,14 +1,3 @@
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { adminContentApi } from '../api/adminContentApi.js';
-import { ContentStatusBadge } from '../components/ContentStatusBadge.jsx';
-
-export function ManageFeaturedProducts() {
-  const [form, setForm] = useState({ productId: '', sectionKey: 'home-featured', displayOrder: 0, status: 'DRAFT' });
-  const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['admin-content-featured'], queryFn: async () => (await adminContentApi.featured.list()).data.data.featuredProducts.items });
-  const create = useMutation({ mutationFn: adminContentApi.featured.create, onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-content-featured'] }) });
-  const update = useMutation({ mutationFn: ({ id, payload }) => adminContentApi.featured.update(id, payload), onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-content-featured'] }) });
-  const remove = useMutation({ mutationFn: adminContentApi.featured.remove, onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-content-featured'] }) });
-  return <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6"><h1 className="text-4xl font-semibold">Featured products</h1><form className="mt-6 grid gap-3 rounded-lg border border-stone-200 bg-white p-5 shadow-sm md:grid-cols-4" onSubmit={(e) => { e.preventDefault(); create.mutate(form); }}><input className="input" value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })} placeholder="Product ID" /><input className="input" value={form.sectionKey} onChange={(e) => setForm({ ...form, sectionKey: e.target.value })} /><input className="input" type="number" value={form.displayOrder} onChange={(e) => setForm({ ...form, displayOrder: Number(e.target.value) })} /><select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}><option>DRAFT</option><option>PUBLISHED</option><option>ARCHIVED</option></select><button className="btn-primary md:col-span-4" disabled={create.isPending || !form.productId}>Add featured product</button></form><section className="mt-6 rounded-lg border border-stone-200 bg-white p-5 shadow-sm">{(q.data || []).map((p) => <div key={p.id} className="grid gap-3 border-b py-3 text-sm md:grid-cols-[1fr_auto_auto]"><div><strong>{p.productName || p.ProductName || p.productId}</strong><p className="text-stone-500">{p.sectionKey}</p></div><ContentStatusBadge status={p.status} /><div className="flex gap-2"><button className="text-[#8d5132] underline" onClick={() => update.mutate({ id: p.id, payload: { status: p.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED' } })}>{p.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}</button><button className="text-red-700 underline" onClick={() => window.confirm('Archive this featured product?') && remove.mutate(p.id)}>Archive</button></div></div>)}</section></main>;
-}
+import { ContentManager } from '../components/ContentManager.jsx';
+import { FeaturedProductForm } from '../components/FeaturedProductForm.jsx';
+export function ManageFeaturedProducts() { return <ContentManager kind="featured" title="Featured products" description="Choose products for storefront sections and control their display order." Form={FeaturedProductForm} />; }

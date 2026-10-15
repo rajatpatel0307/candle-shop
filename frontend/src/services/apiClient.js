@@ -6,15 +6,20 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+let refreshPromise;
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    const isAuthRefresh = originalRequest?.url?.includes('/auth/refresh');
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRefresh) {
+    const isAuthRequest = /\/auth\/(?:login|register|refresh|forgot-password|reset-password|verify-email|resend-verification|logout)(?:[/?]|$)/.test(originalRequest?.url || '');
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRequest) {
       originalRequest._retry = true;
       try {
-        await apiClient.post('/auth/refresh');
+        if (!refreshPromise) {
+          refreshPromise = apiClient.post('/auth/refresh').finally(() => { refreshPromise = undefined; });
+        }
+        await refreshPromise;
         return apiClient(originalRequest);
       } catch {
         return Promise.reject(error);

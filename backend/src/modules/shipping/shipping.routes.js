@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../common/middleware/asyncHandler.js';
 import { authenticate } from '../auth/auth.middleware.js';
-import { addTrackingEvent, createShipment, dispatchShipment, getShipment, listByOrder, tracking, updateShipment } from './shipping.controller.js';
+import { addTrackingEvent, createShipment, dispatchShipment, getShipment, listByOrder, listAdmin, tracking, updateShipment } from './shipping.controller.js';
 import { requireShippingAdmin } from './shipping.policy.js';
 
 const router = Router();
 router.use(authenticate, requireShippingAdmin);
+router.get('/shipments', asyncHandler(listAdmin));
 
 router.post('/orders/:orderId/shipments', asyncHandler(createShipment));
 router.get('/orders/:orderId/shipments', asyncHandler(listByOrder));

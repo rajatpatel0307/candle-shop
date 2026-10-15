@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "db:migrate:admin-repairs": "node src/scripts/applyAdminRepairs.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "db:migrate:auth": "node src/scripts/applyAuthMigrations.js",
@@ -13,8 +14,10 @@
     "db:migrate:orders-shipping": "node src/scripts/applyOrdersShippingMigrations.js",
     "db:migrate:admin-dashboard": "node src/scripts/applyAdminDashboardMigrations.js",
     "db:migrate:customer-engagement": "node src/scripts/applyCustomerEngagementMigrations.js",
+    "db:migrate:instant-reviews": "node src/scripts/publishPendingReviews.js",
     "db:migrate:website-content": "node src/scripts/applyWebsiteContentMigrations.js",
     "test": "node --test",
+    "test:admin:integration": "node --test tests/admin.integration.test.js",
     "test:checkout:integration": "node --test tests/checkout.integration.test.js"
   },
   "dependencies": {

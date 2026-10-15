@@ -18,11 +18,11 @@ import {
 import { getRoleHomePath, hasAnyRole } from './features/auth/utils/authRouting.js';
 import { CartPage, useCartMutations } from './features/cart/index.js';
 import { useCart } from './features/cart/hooks/useCart.js';
-import { CartQuantityControl } from './features/cart/components/CartQuantityControl.jsx';
 import { useWishlist } from './features/wishlist/hooks/useWishlist.js';
 import { CheckoutPage, OrderConfirmationPage, PaymentResultPage } from './features/checkout/index.js';
 import { OrderDetailsPage, OrderHistoryPage, OrderTrackingPage } from './features/orders/index.js';
 import { CustomerAccountLayout } from './features/account/CustomerAccountLayout.jsx';
+import { ProductDetailsPage } from './features/catalog/pages/ProductDetailsPage.jsx';
 import { ProfilePage } from './features/account/ProfilePage.jsx';
 import { AddressesPage } from './features/account/AddressesPage.jsx';
 import { WishlistButton, WishlistPage } from './features/wishlist/index.js';
@@ -31,7 +31,6 @@ import { AdminDashboardPage } from './admin/dashboard/index.js';
 import { AdminProductsPage } from './admin/products/index.js';
 import { AdminCategoriesPage } from './admin/categories/index.js';
 import { AdminBrandsPage } from './admin/brands/index.js';
-import { AdminFragrancesPage } from './admin/fragrances/index.js';
 import { AdminCustomersPage, AdminCustomerDetailsPage } from './admin/customers/index.js';
 import { AdminCouponsPage } from './admin/coupons/index.js';
 import { AdminShippingSettingsPage } from './admin/shipping/index.js';
@@ -39,8 +38,6 @@ import { AdminSettingsPage } from './admin/settings/index.js';
 import { AdminReportsPage } from './admin/reports/index.js';
 import { AdminAuditLogsPage } from './admin/audit-logs/index.js';
 import { MyReviews } from './features/reviews/index.js';
-import { RatingSummary, ReviewForm, ReviewList } from './features/reviews/index.js';
-import { reviewsApi } from './features/reviews/reviews.api.js';
 import { NotificationBell, NotificationsPage } from './features/notifications/index.js';
 import { ContactUs } from './features/contact/index.js';
 import { MyTickets, TicketDetails } from './features/support/index.js';
@@ -50,7 +47,7 @@ import { ManageContactMessages } from './admin/contact/index.js';
 import { AdminTicketDetails, ManageTickets } from './admin/support/index.js';
 import { HomePage as DynamicHomePage } from './features/home/index.js';
 import { AboutUs, ContentPage, PrivacyPolicy, TermsAndConditions } from './features/content/index.js';
-import { EditContentPage, ManageBanners, ManageContentPages, ManageFeaturedProducts, ManagePromotions, ManageSeo } from './admin/content/index.js';
+import { ManageBanners } from './admin/content/index.js';
 import {
   InventoryDashboard,
   InventoryDetailsPage,
@@ -75,13 +72,13 @@ const fallbackCategories = [
 
 const adminGroups = [
   ['Dashboard', ['dashboard', 'reports', 'audit-logs', 'settings']],
-  ['Catalog', ['categories', 'brands', 'fragrances', 'products', 'product-variants', 'product-images', 'product-specifications', 'product-tags', 'product-tag-mappings']],
+  ['Catalog', ['categories', 'brands', 'products', 'product-variants', 'product-images', 'product-specifications', 'product-tags', 'product-tag-mappings']],
   ['Stock', ['inventory-dashboard', 'inventory', 'inventory-movements', 'inventory-reservations']],
   ['Orders', ['orders', 'shipments', 'refunds', 'carts', 'cart-items', 'checkout-sessions', 'order-items', 'order-addresses', 'order-status-history']],
   ['Payment', ['payments', 'payment-attempts', 'payment-webhook-events', 'coupons', 'coupon-usages', 'product-discounts']],
   ['Customers', ['customers', 'users', 'roles', 'user-roles', 'user-addresses', 'wishlists', 'wishlist-items', 'notifications']],
   ['Engagement', ['reviews', 'notifications', 'contact-messages', 'support-tickets']],
-  ['Content', ['content/banners', 'content/promotions', 'content/pages', 'content/featured-products', 'content/seo', 'shipping-settings', 'store-settings']],
+  ['Content', ['content/banners', 'shipping-settings', 'store-settings']],
 ];
 
 function currency(value) {
@@ -153,7 +150,6 @@ const adminNavSections = [
       { to: '/admin/products', label: 'Products', icon: Package, roles: ['ADMIN', 'SUPPORT'] },
       { to: '/admin/categories', label: 'Categories', icon: Boxes, roles: ['ADMIN', 'SUPPORT'] },
       { to: '/admin/brands', label: 'Brands', icon: Flame, roles: ['ADMIN', 'SUPPORT'] },
-      { to: '/admin/fragrances', label: 'Fragrances', icon: Sparkles, roles: ['ADMIN', 'SUPPORT'] },
     ],
   },
   {
@@ -178,10 +174,6 @@ const adminNavSections = [
     title: 'Content',
     items: [
       { to: '/admin/content/banners', label: 'Banners', icon: FileText, roles: ['ADMIN', 'SUPPORT'] },
-      { to: '/admin/content/promotions', label: 'Promotions', icon: Sparkles, roles: ['ADMIN', 'SUPPORT'] },
-      { to: '/admin/content/pages', label: 'Pages', icon: FileText, roles: ['ADMIN', 'SUPPORT'] },
-      { to: '/admin/content/featured-products', label: 'Featured', icon: Package, roles: ['ADMIN', 'SUPPORT'] },
-      { to: '/admin/content/seo', label: 'SEO', icon: Search, roles: ['ADMIN', 'SUPPORT'] },
       { to: '/admin/shipping-settings', label: 'Shipping settings', icon: Truck, roles: ['ADMIN', 'SUPPORT'] },
     ],
   },
@@ -196,9 +188,10 @@ const adminNavSections = [
 
 function AdminSidebar({ onNavigate }) {
   const { user } = useAuth();
+  const [search, setSearch] = useState('');
 
   return (
-    <aside className="border-stone-200 bg-[#2f2722] text-stone-100 lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:overflow-y-auto lg:border-r">
+    <aside className="flex h-full flex-col border-stone-200 bg-[#2f2722] text-stone-100 lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:border-r">
       <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
         <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[#f0c28d] text-[#2f2722]"><Flame className="h-5 w-5" /></span>
         <div>
@@ -206,9 +199,10 @@ function AdminSidebar({ onNavigate }) {
           <p className="text-xs text-stone-300">Candle Studio</p>
         </div>
       </div>
-      <nav className="grid gap-5 px-3 py-4 text-sm" aria-label="Admin navigation">
+      <div className="px-4 pt-4"><label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3"><Search className="h-4 w-4 text-stone-400" /><input type="search" aria-label="Search admin pages" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a page..." className="min-w-0 w-full bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-stone-400" /></label></div>
+      <nav className="grid flex-1 content-start gap-5 overflow-y-auto px-3 py-5 text-sm" aria-label="Admin navigation">
         {adminNavSections.map((section) => {
-          const items = section.items.filter((item) => hasAnyRole(user, item.roles));
+          const items = section.items.filter((item) => hasAnyRole(user, item.roles) && `${section.title} ${item.label}`.toLowerCase().includes(search.toLowerCase().trim()));
           if (items.length === 0) return null;
 
           return (
@@ -221,7 +215,7 @@ function AdminSidebar({ onNavigate }) {
                     <NavLink
                       key={item.to}
                       to={item.to}
-                      className={({ isActive }) => `flex items-center gap-3 rounded-md px-3 py-2 font-medium transition ${isActive ? 'bg-white text-[#2f2722]' : 'text-stone-200 hover:bg-white/10 hover:text-white'}`}
+                      className={({ isActive }) => `flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition ${isActive ? 'bg-[#f0c28d] text-[#2f2722] shadow-sm' : 'text-stone-200 hover:bg-white/10 hover:text-white'}`}
                       onClick={onNavigate}
                     >
                       <Icon className="h-4 w-4" />
@@ -233,34 +227,22 @@ function AdminSidebar({ onNavigate }) {
             </section>
           );
         })}
+        {search && !adminNavSections.some((section) => section.items.some((item) => hasAnyRole(user, item.roles) && `${section.title} ${item.label}`.toLowerCase().includes(search.toLowerCase().trim()))) && <p className="px-3 text-stone-400">No pages match your search.</p>}
       </nav>
+      <div className="border-t border-white/10 p-4"><Link to="/" onClick={onNavigate} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-3 text-sm text-stone-200 hover:bg-white/10">View storefront<ArrowRight className="h-4 w-4" /></Link></div>
     </aside>
   );
 }
 
-function getAdminPageTitle(pathname) {
-  if (pathname === '/admin/profile') return 'Profile';
-
-  const items = adminNavSections.flatMap((section) => section.items);
-  const match = items
-    .filter((item) => pathname === item.to || pathname.startsWith(`${item.to}/`))
-    .sort((a, b) => b.to.length - a.to.length)[0];
-
-  return match?.label || 'Admin';
-}
-
 function AdminHeader() {
-  const location = useLocation();
   const { user } = useAuth();
-  const title = getAdminPageTitle(location.pathname);
   const roleLabel = hasAnyRole(user, ['ADMIN']) ? 'Administrator' : 'Support';
 
   return (
     <header className="z-30 border-b border-stone-200 bg-[#f7f2ea]/95 px-4 py-3 backdrop-blur sm:px-6 lg:sticky lg:top-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase text-[#8d5132]">Admin workspace</p>
-          <h1 className="text-2xl font-semibold text-[#2f2722]">{title}</h1>
+          <h1 className="text-2xl font-semibold text-[#2f2722]">Candle Studio</h1>
         </div>
         <div className="flex items-center gap-2">
           <span className="hidden rounded-full bg-white px-3 py-1 text-xs font-semibold text-stone-600 shadow-sm sm:inline-flex">{roleLabel}</span>
@@ -274,9 +256,28 @@ function AdminHeader() {
 
 function AdminLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileMenu = useRef(null);
+  const mobileTrigger = useRef(null);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    mobileMenu.current?.querySelector('button')?.focus();
+    const close = (event) => {
+      if (event.key === 'Escape') setMobileOpen(false);
+      if (event.key === 'Tab') {
+        const items = [...(mobileMenu.current?.querySelectorAll('button, a, input') || [])].filter((item) => !item.disabled);
+        const first = items[0]; const last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    };
+    window.addEventListener('keydown', close);
+    return () => { document.body.style.overflow = previous; window.removeEventListener('keydown', close); mobileTrigger.current?.focus(); };
+  }, [mobileOpen]);
 
   return (
-    <div className="min-h-screen bg-[#f7f2ea] text-[#2f2722] lg:grid lg:grid-cols-[18rem_1fr]">
+    <div className="admin-workspace min-h-screen bg-[#f7f5f1] text-[#2f2722] lg:grid lg:grid-cols-[18rem_1fr]">
       <div className="hidden lg:block">
         <AdminSidebar />
       </div>
@@ -286,11 +287,11 @@ function AdminLayout({ children }) {
             <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#2f2722] text-white"><Flame className="h-5 w-5 text-[#f0c28d]" /></span>
             Admin Panel
           </Link>
-          <button className="icon-btn" type="button" aria-label={mobileOpen ? 'Close admin menu' : 'Open admin menu'} aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>
+          <button ref={mobileTrigger} aria-controls="mobile-admin-menu" className="icon-btn" type="button" aria-label={mobileOpen ? 'Close admin menu' : 'Open admin menu'} aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>
             {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
         </div>
-        {mobileOpen && <AdminSidebar onNavigate={() => setMobileOpen(false)} />}
+        {mobileOpen && <div className="fixed inset-0 z-50"><button type="button" aria-label="Close admin menu" className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} /><div ref={mobileMenu} id="mobile-admin-menu" role="dialog" aria-modal="true" aria-label="Admin navigation" className="relative h-full w-[min(20rem,85vw)]"><button type="button" aria-label="Close menu" autoFocus onClick={() => setMobileOpen(false)} className="absolute right-3 top-4 z-10 rounded-lg p-2 text-stone-200 hover:bg-white/10"><X className="h-5 w-5" /></button><AdminSidebar onNavigate={() => setMobileOpen(false)} /></div></div>}
       </div>
       <div className="min-w-0">
         <AdminHeader />
@@ -418,9 +419,9 @@ function HeaderCountLink({ to, label, icon: Icon, count, pending, error, classNa
   return (
     <Link to={to} className={`icon-btn relative ${className}`} aria-label={`${label}, ${countLabel}`} title={`${label}: ${countLabel}`}>
       <Icon className="h-4 w-4" />
-      <span aria-live="polite" aria-atomic="true" className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#8d5132] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#f7f2ea]">
-        {pending ? '…' : error ? '?' : count}
-      </span>
+      {(pending || error || count > 0) && <span aria-live="polite" aria-atomic="true" className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#8d5132] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#f7f2ea]">
+        {pending ? 'â€¦' : error ? '?' : count}
+      </span>}
     </Link>
   );
 }
@@ -457,7 +458,7 @@ function Shell({ children }) {
         {menuOpen && (
           <nav className="border-t border-stone-200 bg-[#f7f2ea] px-4 py-3 text-sm font-semibold md:hidden" aria-label="Mobile navigation">
             <div className="mx-auto grid max-w-7xl gap-1">
-              {[...primaryNav, { to: '/wishlist', label: `Wishlist (${isAuthenticated && wishlist.isPending ? '…' : isAuthenticated && wishlist.isError && !wishlist.data ? '?' : wishlistCount})` }, { to: '/orders', label: 'Orders' }, { to: '/support/tickets', label: 'Support' }].map((item) => (
+              {[...primaryNav, { to: '/wishlist', label: `Wishlist (${isAuthenticated && wishlist.isPending ? 'â€¦' : isAuthenticated && wishlist.isError && !wishlist.data ? '?' : wishlistCount})` }, { to: '/orders', label: 'Orders' }, { to: '/support/tickets', label: 'Support' }].map((item) => (
                 <NavLink key={item.to} to={item.to} className={navClass} onClick={() => setMenuOpen(false)}>{item.label}</NavLink>
               ))}
             </div>
@@ -490,7 +491,7 @@ function Shell({ children }) {
           </div>
         </div>
         <div className="mx-auto mt-8 flex max-w-7xl flex-col gap-2 border-t border-stone-300 pt-5 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Candle Studio. All rights reserved.</p>
+          <p>Â© {new Date().getFullYear()} Candle Studio. All rights reserved.</p>
           <p>React, Vite, Express, and Microsoft SQL Server storefront.</p>
         </div>
       </footer>
@@ -604,75 +605,7 @@ function ShopPage() {
 }
 
 function ProductPage() {
-  const { slug } = useParams();
-  const { isAuthenticated } = useAuth();
-  const cart = useCart({ enabled: isAuthenticated });
-  const [quantity, setQuantity] = useState(1);
-  const cartActions = useCartMutations();
-  const fallback = fallbackProducts.find((product) => product.Slug === slug) || fallbackProducts[0];
-  const { data: product, isError } = useApiQuery(['product', slug], endpoints.product(slug), { ...fallback, variants: [], images: [{ ImageUrl: fallback.ImageUrl, AltText: fallback.ProductName }], specifications: [], reviews: [] });
-  const reviewSummary = useQuery({ queryKey: ['review-summary', product?.ProductId], enabled: Boolean(product?.ProductId), retry: false, queryFn: async () => (await reviewsApi.summary(product.ProductId)).data.data.summary });
-  const reviews = useQuery({ queryKey: ['product-reviews', product?.ProductId], enabled: Boolean(product?.ProductId), retry: false, queryFn: async () => (await reviewsApi.list(product.ProductId)).data.data.reviews.items });
-  const reviewMutation = useMutation({ mutationFn: (payload) => reviewsApi.create(product.ProductId, payload), onSuccess: () => { reviewSummary.refetch(); reviews.refetch(); } });
-  const firstVariant = product?.variants?.[0];
-  const availableQuantity = Number(firstVariant?.AvailableQuantity || 0);
-  const cartQuantity = Number(cart.data?.items?.find((item) => item.ProductVariantId?.toLowerCase() === firstVariant?.ProductVariantId?.toLowerCase())?.Quantity || 0);
-  const remainingQuantity = Math.max(0, Math.min(99, availableQuantity) - cartQuantity);
-  const selectedQuantity = Math.min(quantity, remainingQuantity);
-  const canAddToCart = Boolean(firstVariant?.ProductVariantId) && remainingQuantity > 0;
-  useEffect(() => {
-    setQuantity(1);
-    cartActions.add.reset();
-  }, [slug]);
-  const addPayload = {
-    productId: product?.ProductId,
-    ...(firstVariant?.ProductVariantId ? { productVariantId: firstVariant.ProductVariantId } : {}),
-    quantity: selectedQuantity,
-  };
-
-  return (
-    <Shell>
-      <main className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-2">
-        <div className="overflow-hidden rounded-lg bg-white shadow-sm">
-          {product?.images?.[0]?.ImageUrl || product?.ImageUrl ? <img src={product.images?.[0]?.ImageUrl || product.ImageUrl} alt={product.ProductName} className="aspect-[4/3] w-full object-cover" /> : <div className="flex aspect-[4/3] items-center justify-center"><Package className="h-16 w-16 text-stone-400" /></div>}
-        </div>
-        <section>
-          <p className="text-sm font-semibold uppercase text-[#697565]">{product?.CategoryName || 'Candle'}</p>
-          <h1 className="mt-2 text-4xl font-semibold">{product?.ProductName}</h1>
-          <p className="mt-4 text-lg leading-8 text-stone-600">{product?.ShortDescription || product?.Description}</p>
-          <p className="mt-6 text-2xl font-semibold">{currency(product?.variants?.[0]?.SellingPrice || product?.SellingPrice)}</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            {canAddToCart && <CartQuantityControl value={selectedQuantity} max={remainingQuantity} disabled={cartActions.add.isPending} onChange={setQuantity} />}
-            <button className="btn-primary" disabled={cartActions.add.isPending || (isAuthenticated && cart.isPending) || !product?.ProductId || !canAddToCart} onClick={() => cartActions.add.mutate(addPayload)}>
-              {cartActions.add.isPending ? 'Adding...' : canAddToCart ? 'Add to cart' : cartQuantity > 0 && availableQuantity > 0 ? 'Cart limit reached' : 'Unavailable'}
-            </button>
-            <WishlistButton productId={product?.ProductId} productVariantId={firstVariant?.ProductVariantId} />
-          </div>
-          {!firstVariant && <p className="mt-3 text-sm text-amber-700">This product does not have a purchasable option yet.</p>}
-          {firstVariant && availableQuantity <= 0 && <p className="mt-3 text-sm text-amber-700">This product is currently out of stock.</p>}
-          {firstVariant && availableQuantity > 0 && <p className="mt-3 text-sm text-stone-600" role="status">{availableQuantity} available in stock.{cartQuantity > 0 ? ` ${cartQuantity} already in your cart.` : ''}</p>}
-          {cartQuantity > 0 && remainingQuantity === 0 && availableQuantity > 0 && <p className="mt-2 text-sm text-amber-700">Your cart has reached the limit for this product. <Link to="/cart" className="underline">View cart</Link></p>}
-          {cartActions.add.isError && <p className="mt-3 text-sm text-red-700">{cartActions.add.error?.response?.data?.error?.message || 'Could not add to cart.'}</p>}
-          {cartActions.add.isSuccess && <p className="mt-3 text-sm text-green-700">Added to cart.</p>}
-          {isError && <p className="mt-4 text-sm text-stone-600">Sample detail shown until this product exists in MSSQL.</p>}
-          <div className="mt-8 grid gap-3">
-            {(product?.variants || []).map((variant) => (
-              <div key={variant.ProductVariantId} className="rounded-lg border border-stone-200 bg-white p-4">
-                <div className="flex justify-between gap-4"><strong>{variant.VariantName}</strong><span>{currency(variant.SellingPrice)}</span></div>
-                <p className="mt-1 text-sm text-stone-600">{variant.FragranceName || variant.SKU}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-8 grid gap-4">
-            <RatingSummary summary={reviewSummary.data} />
-            <ReviewForm pending={reviewMutation.isPending} onSubmit={(payload) => reviewMutation.mutate(payload)} />
-            {reviewMutation.isError && <p className="text-sm text-red-700">{reviewMutation.error?.response?.data?.error?.message || 'Could not submit review.'}</p>}
-            <ReviewList reviews={reviews.data || []} />
-          </div>
-        </section>
-      </main>
-    </Shell>
-  );
+  return <Shell><ProductDetailsPage /></Shell>;
 }
 
 function CategoriesPage() {
@@ -910,10 +843,10 @@ function AppRoutes() {
       <Route path="/addresses" element={<Navigate to="/account/addresses" replace />} />
       <Route path="/account/orders" element={<Navigate to="/orders" replace />} />
       <Route path="/notifications" element={<CustomerRoute><NotificationsPage /></CustomerRoute>} />
-      <Route path="/account/reviews" element={<CustomerRoute><MyReviews /></CustomerRoute>} />
+      <Route path="/account/reviews" element={<CustomerRoute><Shell><CustomerAccountLayout><MyReviews /></CustomerAccountLayout></Shell></CustomerRoute>} />
       <Route path="/support/tickets" element={<CustomerRoute><MyTickets /></CustomerRoute>} />
       <Route path="/support/tickets/:ticketId" element={<CustomerRoute><TicketDetails /></CustomerRoute>} />
-      <Route path="/cart" element={<CustomerRoute><CartPage /></CustomerRoute>} />
+      <Route path="/cart" element={<CustomerRoute><Shell><CartPage /></Shell></CustomerRoute>} />
       <Route path="/checkout" element={<CustomerRoute><CheckoutPage /></CustomerRoute>} />
       <Route path="/payments/result" element={<CustomerRoute><PaymentResultPage /></CustomerRoute>} />
       <Route path="/orders/:orderId/confirmation" element={<CustomerRoute><OrderConfirmationPage /></CustomerRoute>} />
@@ -927,7 +860,6 @@ function AppRoutes() {
       <Route path="/admin/products" element={<AdminRoute><AdminProductsPage /></AdminRoute>} />
       <Route path="/admin/categories" element={<AdminRoute><AdminCategoriesPage /></AdminRoute>} />
       <Route path="/admin/brands" element={<AdminRoute><AdminBrandsPage /></AdminRoute>} />
-      <Route path="/admin/fragrances" element={<AdminRoute><AdminFragrancesPage /></AdminRoute>} />
       <Route path="/admin/customers" element={<AdminRoute><AdminCustomersPage /></AdminRoute>} />
       <Route path="/admin/customers/:customerId" element={<AdminRoute><AdminCustomerDetailsPage /></AdminRoute>} />
       <Route path="/admin/coupons" element={<AdminRoute><AdminCouponsPage /></AdminRoute>} />
@@ -941,11 +873,6 @@ function AppRoutes() {
       <Route path="/admin/support-tickets" element={<AdminRoute><ManageTickets /></AdminRoute>} />
       <Route path="/admin/support/tickets/:ticketId" element={<AdminRoute><AdminTicketDetails /></AdminRoute>} />
       <Route path="/admin/content/banners" element={<AdminRoute><ManageBanners /></AdminRoute>} />
-      <Route path="/admin/content/promotions" element={<AdminRoute><ManagePromotions /></AdminRoute>} />
-      <Route path="/admin/content/pages" element={<AdminRoute><ManageContentPages /></AdminRoute>} />
-      <Route path="/admin/content/pages/:id" element={<AdminRoute><EditContentPage /></AdminRoute>} />
-      <Route path="/admin/content/featured-products" element={<AdminRoute><ManageFeaturedProducts /></AdminRoute>} />
-      <Route path="/admin/content/seo" element={<AdminRoute><ManageSeo /></AdminRoute>} />
       <Route path="/admin/resources" element={<AdminRoute roles={['ADMIN']}><AdminPage /></AdminRoute>} />
       <Route path="/admin/orders" element={<AdminRoute><AdminOrdersPage /></AdminRoute>} />
       <Route path="/admin/orders/:orderId" element={<AdminRoute><AdminOrderDetailsPage /></AdminRoute>} />

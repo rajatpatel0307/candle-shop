@@ -18,6 +18,7 @@ export const loginUser = createAsyncThunk('auth/login', async (payload, { reject
     return rejectWithValue({
       code: error.response?.data?.error?.code,
       message: error.response?.data?.error?.message || error.response?.data?.message || 'Login failed.',
+      retryAfterSeconds: error.response?.status === 429 ? Math.max(1, Number(error.response.headers?.['retry-after']) || 900) : undefined,
     });
   }
 });

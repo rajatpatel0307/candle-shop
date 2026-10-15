@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { getPool, sql } from '../../config/database.js';
 
 export function resolveRange(input = {}) {
@@ -211,17 +210,23 @@ export async function listAuditLogs(query) {
   const request = pool.request()
     .input('limit', sql.Int, query.limit)
     .input('offset', sql.Int, (query.page - 1) * query.limit);
-  const where = ['1 = 1'];
+  const range = resolveRange(query);
+  bindRange(request, range);
+  const where = ['a.CreatedAtUtc >= @from', 'a.CreatedAtUtc < @to'];
   if (query.search) {
     request.input('search', sql.NVarChar(180), `%${query.search}%`);
-    where.push('(ActionName LIKE @search OR EntityName LIKE @search OR Outcome LIKE @search)');
+    where.push('(a.ActionName LIKE @search OR a.EntityName LIKE @search OR a.Outcome LIKE @search OR u.Email LIKE @search)');
+  }
+  if (query.status) {
+    request.input('status', sql.VarChar(50), query.status);
+    where.push('a.Outcome = @status');
   }
   const result = await request.query(`
     SELECT a.*, u.Email, COUNT(1) OVER() AS TotalRows
     FROM dbo.AuditLogs a
     LEFT JOIN dbo.Users u ON u.UserId = a.ActorUserId
     WHERE ${where.join(' AND ')}
-    ORDER BY a.CreatedAtUtc DESC
+    ORDER BY a.CreatedAtUtc DESC, a.AuditLogId DESC
     OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
   `);
   return { rows: result.recordset.map(({ TotalRows, ...row }) => row), total: Number(result.recordset[0]?.TotalRows || 0) };
@@ -230,7 +235,7 @@ export async function listAuditLogs(query) {
 export async function getAuditLog(id) {
   const pool = await getPool();
   const result = await pool.request()
-    .input('id', sql.UniqueIdentifier, id)
+    .input('id', sql.BigInt, id)
     .query('SELECT TOP 1 * FROM dbo.AuditLogs WHERE AuditLogId = @id;');
   return result.recordset[0] ?? null;
 }
@@ -238,19 +243,18 @@ export async function getAuditLog(id) {
 export async function insertAuditLog({ userId, action, entityName, entityId, outcome = 'SUCCESS', details, req }) {
   const pool = await getPool();
   await pool.request()
-    .input('id', sql.UniqueIdentifier, randomUUID())
     .input('userId', sql.UniqueIdentifier, userId ?? null)
-    .input('action', sql.NVarChar(150), action)
-    .input('entityName', sql.NVarChar(100), entityName)
-    .input('entityId', sql.UniqueIdentifier, entityId ?? null)
-    .input('outcome', sql.VarChar(30), outcome)
+    .input('action', sql.NVarChar(120), action)
+    .input('entityName', sql.NVarChar(120), entityName)
+    .input('entityId', sql.NVarChar(100), entityId == null ? null : String(entityId))
+    .input('outcome', sql.NVarChar(20), outcome)
     .input('ip', sql.VarChar(45), req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req?.socket?.remoteAddress || null)
     .input('agent', sql.NVarChar(500), req?.headers?.['user-agent'] ?? null)
-    .input('correlation', sql.NVarChar(100), req?.id ?? null)
+    .input('correlation', sql.UniqueIdentifier, req?.id ?? null)
     .input('details', sql.NVarChar(sql.MAX), details ? JSON.stringify(details) : null)
     .query(`
-      INSERT INTO dbo.AuditLogs (AuditLogId, ActorUserId, ActionName, EntityName, EntityId, Outcome, IpAddress, UserAgent, CorrelationId, DetailsJson)
-      VALUES (@id, @userId, @action, @entityName, @entityId, @outcome, @ip, @agent, @correlation, @details);
+      INSERT INTO dbo.AuditLogs (ActorUserId, ActionName, EntityName, EntityId, Outcome, IpAddress, UserAgent, CorrelationId, DetailsJson)
+      VALUES (@userId, @action, @entityName, @entityId, @outcome, @ip, @agent, @correlation, @details);
     `);
 }
 
@@ -367,7 +371,6 @@ export async function getSetting(key) {
 export async function upsertSetting(input, userId) {
   const pool = await getPool();
   const result = await pool.request()
-    .input('id', sql.UniqueIdentifier, randomUUID())
     .input('key', sql.NVarChar(150), input.settingKey)
     .input('value', sql.NVarChar(sql.MAX), serializeSettingValue(input.settingValue, input.valueType))
     .input('type', sql.VarChar(30), input.valueType)
@@ -385,8 +388,8 @@ export async function upsertSetting(input, userId) {
         IsPublic = @isPublic,
         UpdatedByUserId = @userId,
         UpdatedAtUtc = SYSUTCDATETIME()
-      WHEN NOT MATCHED THEN INSERT (StoreSettingId, SettingKey, SettingValue, ValueType, Description, IsPublic, UpdatedByUserId)
-        VALUES (@id, @key, @value, @type, @description, @isPublic, @userId)
+      WHEN NOT MATCHED THEN INSERT (SettingKey, SettingValue, ValueType, Description, IsPublic, UpdatedByUserId)
+        VALUES (@key, @value, @type, @description, @isPublic, @userId)
       OUTPUT inserted.*;
     `);
   return result.recordset[0];

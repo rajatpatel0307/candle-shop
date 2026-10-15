@@ -1,3 +1,6 @@
+import { Star } from 'lucide-react';
+
 export function StarRating({ value = 0, onChange }) {
-  return <div className="flex gap-1">{[1, 2, 3, 4, 5].map((star) => <button key={star} type="button" className={`text-xl ${star <= value ? 'text-[#b56b45]' : 'text-stone-300'}`} onClick={() => onChange?.(star)}>★</button>)}</div>;
+  if (!onChange) return <span role="img" aria-label={`${value} out of 5 stars`} className="inline-flex gap-0.5">{[1,2,3,4,5].map((star) => <Star key={star} aria-hidden="true" className={`h-4 w-4 ${star <= value ? 'fill-[#b88952] text-[#b88952]' : 'text-stone-200'}`} />)}</span>;
+  return <div role="radiogroup" aria-label="Your rating" className="flex gap-2">{[1,2,3,4,5].map((star) => <button key={star} type="button" role="radio" aria-checked={star === value} aria-label={`${star} ${star === 1 ? 'star' : 'stars'}`} tabIndex={star === (value || 1) ? 0 : -1} className="rounded p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#8d5132]" onClick={() => onChange(star)} onKeyDown={(event) => { const next = { ArrowRight: Math.min(5,star+1), ArrowUp: Math.min(5,star+1), ArrowLeft: Math.max(1,star-1), ArrowDown: Math.max(1,star-1), Home: 1, End: 5 }[event.key]; if (next) { event.preventDefault(); onChange(next); event.currentTarget.parentElement.children[next-1].focus(); } }}><Star className={`h-8 w-8 transition ${star <= value ? 'fill-[#b88952] text-[#b88952]' : 'text-stone-300 hover:text-[#b88952]'}`} /></button>)}</div>;
 }

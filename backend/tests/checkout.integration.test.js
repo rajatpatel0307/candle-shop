@@ -41,6 +41,7 @@ test('checkout works against the installed SQL schema', { skip: process.env.RUN_
   let session;
   let address;
   let order;
+  let reviewOrder;
   try {
     await pool.request()
       .input('user', sql.UniqueIdentifier, userId).input('product', sql.UniqueIdentifier, productId)
@@ -56,8 +57,22 @@ test('checkout works against the installed SQL schema', { skip: process.env.RUN_
         INSERT INTO dbo.Inventory (ProductVariantId, OnHandQuantity) VALUES (@variant, 20);`);
 
     await t.test('cart quantity, session creation and address save work', async () => {
+      const product = await api('get', `/store/products/${tag}`);
+      assert.equal(product.ProductName,tag);
+      assert.equal(Number(product.variants[0].SellingPrice),323);
       const added = await api('post', '/carts/items', { productVariantId: variantId, quantity: 2 }, 201);
       assert.equal(added.cart.summary.totalQuantity, 2);
+      await pool.request().input('id', sql.UniqueIdentifier, variantId)
+        .query('UPDATE dbo.Inventory SET OnHandQuantity=1 WHERE ProductVariantId=@id; UPDATE dbo.ProductVariants SET SellingPrice=400 WHERE ProductVariantId=@id;');
+      const checked = (await api('post', '/carts/validate')).validation;
+      assert.equal(checked.isValid, false);
+      assert.equal(checked.errors[0].code, 'INSUFFICIENT_STOCK');
+      assert.equal(checked.items[0].AvailableQuantity, 1);
+      assert.equal(checked.items[0].UnitPrice, 400);
+      assert.equal(checked.subtotal, 800);
+      await pool.request().input('id', sql.UniqueIdentifier, variantId)
+        .query('UPDATE dbo.Inventory SET OnHandQuantity=20 WHERE ProductVariantId=@id; UPDATE dbo.ProductVariants SET SellingPrice=323 WHERE ProductVariantId=@id;');
+      assert.equal((await api('post', '/carts/validate')).validation.isValid, true);
       // Match existing carts created by other parts of the app, which use uppercase status values.
       await pool.request().input('id', sql.UniqueIdentifier, added.cart.cartId)
         .query("UPDATE dbo.Carts SET CartStatus=N'ACTIVE' WHERE CartId=@id");
@@ -132,6 +147,7 @@ test('checkout works against the installed SQL schema', { skip: process.env.RUN_
       // Exercise persistence without contacting a real payment provider or charging money.
       const created = await checkoutRepo.createOrderTransaction({ userId, session: online.session, pricing: online.pricing,
         shippingAddress: online.shippingAddress, billingAddress: online.billingAddress, idempotencyKey: randomUUID(), paymentMethod: 'ONLINE' });
+      reviewOrder = created.order;
       assert.deepEqual(await stock(), { OnHandQuantity: 20, ReservedQuantity: 3 });
       assert.equal(await cartRowCount(online.session.CartId), 1);
       // A new cart added while payment is pending must survive confirmation of the earlier order.
@@ -154,6 +170,47 @@ test('checkout works against the installed SQL schema', { skip: process.env.RUN_
       assert.equal(await cartRowCount(online.session.CartId), 0);
       assert.equal((await api('get', '/carts')).cart.summary.totalQuantity, 1);
       await api('delete', '/carts');
+    });
+
+    await t.test('delivered buyers can publish and edit reviews immediately on products and orders', async () => {
+      assert.equal((await api('get', `/products/${productId}/reviews/eligibility`)).eligibility.canReview, false);
+      await api('post', `/products/${productId}/reviews`, { rating: 4, comment: 'Lovely scent and a clean burn.' }, 403);
+      await api('post', `/shipping/orders/${reviewOrder.OrderId}/shipments`, {carrierName:'Test carrier'}, 409, adminToken);
+      for (const status of ['PROCESSING','READY_TO_SHIP']) await api('patch', `/orders/admin/${reviewOrder.OrderId}/status`, { status }, 200, adminToken);
+      const shipment = (await api('post', `/shipping/orders/${reviewOrder.OrderId}/shipments`, {carrierName:'Test carrier',trackingNumber:tag},201,adminToken)).shipment;
+      const shipments = (await api('get', `/shipping/shipments?search=${tag}&status=CREATED&limit=1`,undefined,200,adminToken)).shipments;
+      assert.equal(shipments.pagination.total,1);
+      assert.equal(shipments.items[0].ShipmentId,shipment.ShipmentId);
+      await api('post', `/shipping/shipments/${shipment.ShipmentId}/dispatch`,undefined,200,adminToken);
+      await api('post', `/shipping/shipments/${shipment.ShipmentId}/tracking-events`,{trackingStatus:'DELIVERED',eventDescription:'Test delivery'},201,adminToken);
+      assert.equal((await api('get', `/orders/${reviewOrder.OrderId}`)).order.order.OrderStatus,'DELIVERED');
+      const eligible = (await api('get', `/products/${productId}/reviews/eligibility`)).eligibility;
+      assert.equal(eligible.canReview, true);
+      assert.ok(Number(eligible.orderItemId)>0);
+      const review = (await api('post', `/products/${productId}/reviews`, {rating:4,title:'Great candle',comment:'Lovely scent and a clean burn.',orderItemId:Number(eligible.orderItemId)},201)).review;
+      assert.equal(review.IsVerifiedPurchase,true);
+      assert.equal(review.ReviewStatus,'APPROVED');
+      await api('post', `/products/${productId}/reviews`, {rating:5,comment:'Duplicate reviews are not allowed.'},409);
+      const summary = (await api('get', `/products/${productId}/reviews/summary`)).summary;
+      assert.equal(summary.ReviewCount,1);assert.equal(Number(summary.AverageRating),4);
+      assert.equal((await api('get', `/store/products/${tag}`)).reviews.length,1);
+      assert.equal((await api('get', `/products/${productId}/reviews?rating=5&sort=highest`)).reviews.items.length,0);
+      assert.equal((await api('get', `/products/${productId}/reviews?rating=4&sort=newest`)).reviews.items[0].IsVerifiedPurchase,true);
+      const details = (await api('get', `/orders/${reviewOrder.OrderId}`)).order;
+      assert.equal(details.items[0].MyRating,4);assert.equal(details.items[0].MyReviewId,review.ProductReviewId);
+      const otherToken = createAccessToken({id:randomUUID(),roles:['CUSTOMER']},randomUUID());
+      await api('patch', `/reviews/${review.ProductReviewId}`, {rating:1},404,otherToken);
+      await api('patch', `/reviews/${review.ProductReviewId}`, {rating:5,comment:'Updated review: lovely scent and quality.'});
+      assert.equal((await api('get', `/products/${productId}/reviews/summary`)).summary.ReviewCount,1);
+      assert.equal((await api('get', `/orders/${reviewOrder.OrderId}`)).order.items[0].MyReviewStatus,'APPROVED');
+      assert.equal(Number((await api('get', `/products/${productId}/reviews/summary`)).summary.AverageRating),5);
+      assert.equal((await api('get','/reviews/my-reviews')).reviews.items.length,1);
+      await api('patch', `/admin/reviews/${review.ProductReviewId}/moderation`, {status:'HIDDEN',reason:'Temporary test visibility change'},200,adminToken);
+      assert.equal((await api('get', `/products/${productId}/reviews/summary`)).summary.ReviewCount,0);
+      await api('patch', `/admin/reviews/${review.ProductReviewId}/moderation`, {status:'APPROVED'},200,adminToken);
+      assert.equal((await api('get', `/products/${productId}/reviews/summary`)).summary.ReviewCount,1);
+      await api('delete', `/reviews/${review.ProductReviewId}`);
+      assert.equal((await api('get', `/products/${productId}/reviews/summary`)).summary.ReviewCount,0);
     });
 
     await t.test('stock loss during submission rolls back the order and keeps the cart active', async () => {
@@ -215,12 +272,18 @@ test('checkout works against the installed SQL schema', { skip: process.env.RUN_
     await pool.request().input('user', sql.UniqueIdentifier, userId).input('product', sql.UniqueIdentifier, productId)
       .input('variant', sql.UniqueIdentifier, variantId).input('tag', sql.NVarChar(100), tag)
       .query(`SET XACT_ABORT ON; BEGIN TRANSACTION;
+        DELETE FROM dbo.Notifications WHERE UserId=@user;
+        DELETE FROM dbo.AuditLogs WHERE ActorUserId=@user;
+        DELETE ri FROM dbo.ReviewImages ri JOIN dbo.ProductReviews r ON r.ProductReviewId=ri.ProductReviewId WHERE r.UserId=@user;
+        DELETE FROM dbo.ProductReviews WHERE UserId=@user;
         DELETE FROM dbo.InventoryMovements WHERE ProductVariantId = @variant;
         DELETE FROM dbo.InventoryReservations WHERE ProductVariantId = @variant;
         DELETE a FROM dbo.PaymentAttempts a JOIN dbo.Payments p ON p.PaymentId=a.PaymentId JOIN dbo.Orders o ON o.OrderId=p.OrderId WHERE o.UserId=@user;
         DELETE p FROM dbo.Payments p JOIN dbo.Orders o ON o.OrderId=p.OrderId WHERE o.UserId=@user;
         DELETE h FROM dbo.OrderStatusHistory h JOIN dbo.Orders o ON o.OrderId=h.OrderId WHERE o.UserId=@user;
         DELETE a FROM dbo.OrderAddresses a JOIN dbo.Orders o ON o.OrderId=a.OrderId WHERE o.UserId=@user;
+        DELETE te FROM dbo.ShipmentTrackingEvents te JOIN dbo.Shipments s ON s.ShipmentId=te.ShipmentId JOIN dbo.Orders o ON o.OrderId=s.OrderId WHERE o.UserId=@user;
+        DELETE s FROM dbo.Shipments s JOIN dbo.Orders o ON o.OrderId=s.OrderId WHERE o.UserId=@user;
         DELETE FROM dbo.OrderItems WHERE ProductVariantId=@variant;
         UPDATE dbo.CheckoutSessions SET OrderId=NULL WHERE UserId=@user;
         DELETE FROM dbo.Orders WHERE UserId=@user;

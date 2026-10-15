@@ -1,3 +1,4 @@
+import { AdminQueryState } from '../../shared/AdminUi.jsx';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Users } from 'lucide-react';
@@ -6,9 +7,10 @@ import { CustomersTable } from '../components/CustomersTable.jsx';
 
 export function AdminCustomersPage() {
   const [search, setSearch] = useState('');
+  const [page,setPage] = useState(1);
   const query = useQuery({
-    queryKey: ['admin-customers', search],
-    queryFn: async () => (await adminCustomersApi.list({ search })).data.data.customers,
+    queryKey: ['admin-customers', search, page],
+    queryFn: async () => (await adminCustomersApi.list({ search, limit:20, offset:(page-1)*20 })).data.data.customers,
   });
 
   return (
@@ -21,13 +23,14 @@ export function AdminCustomersPage() {
         </div>
         <label className="flex min-w-72 items-center gap-2 rounded-md border border-stone-300 bg-white px-3 py-2">
           <Search className="h-4 w-4 text-stone-500" />
-          <input className="w-full bg-transparent text-sm outline-none" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customers" />
+          <input className="w-full bg-transparent text-sm outline-none" value={search} onChange={(event) => {setSearch(event.target.value);setPage(1);}} placeholder="Search customers" />
         </label>
       </div>
       <div className="mt-6">
-        {query.isLoading ? <div className="h-48 animate-pulse rounded-lg bg-stone-200" /> : <CustomersTable rows={query.data || []} />}
-        {query.isError && <p className="mt-3 text-sm text-red-700">Could not load customers.</p>}
+        <AdminQueryState query={query} empty={!query.data?.length} emptyText="No customers match your search." />{query.data?.length > 0 && !query.isError && <CustomersTable rows={query.data} />}
+
       </div>
+      <div className="mt-5 flex items-center justify-between text-sm"><span className="text-stone-500">Page {page}</span><div className="flex gap-2"><button className="btn-secondary" disabled={page <= 1 || query.isFetching} onClick={() => setPage(page-1)}>Previous</button><button className="btn-secondary" disabled={query.isError || query.isFetching || (query.data?.length || 0) < 20} onClick={() => setPage(page+1)}>Next</button></div></div>
     </main>
   );
 }

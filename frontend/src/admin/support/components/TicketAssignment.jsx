@@ -21,7 +21,9 @@ export function TicketAssignment({ assigneeId = '', pending = false, onAssign })
       >
         <input
           className="min-h-11 flex-1 rounded-lg border border-stone-300 px-3 text-sm outline-none focus:border-[#8d5132] focus:ring-2 focus:ring-[#8d5132]/20"
-          inputMode="numeric"
+          aria-label="Assign to admin user ID"
+          required
+          pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
           placeholder="Admin user ID"
           value={value}
           onChange={(event) => setValue(event.target.value)}

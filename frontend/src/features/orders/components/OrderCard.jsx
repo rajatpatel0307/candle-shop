@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Package, ArrowUpRight, Truck, ChevronRight } from 'lucide-react';
+import { Package, ArrowUpRight, Truck, ChevronRight, Star } from 'lucide-react';
 import { currency, formatDate } from '../utils/ordersHelpers.js';
 
 const statusNames = { PENDING_PAYMENT: 'Awaiting payment', CONFIRMED: 'Confirmed', PROCESSING: 'Preparing your order', READY_TO_SHIP: 'Ready to ship', SHIPPED: 'On its way', DELIVERED: 'Delivered', CANCELLED: 'Cancelled', CANCELLATION_REQUESTED: 'Cancellation requested', RETURN_REQUESTED: 'Return requested', RETURNED: 'Returned' };
@@ -19,7 +19,7 @@ export function OrderCard({ order }) {
         <div className="pl-20 text-left sm:pl-0 sm:text-right"><p className="text-lg font-semibold">{currency(order.GrandTotal, order.CurrencyCode)}</p><p className="mt-1 text-xs text-stone-500">{order.PaymentMethod === 'COD' && order.PaymentStatus !== 'SUCCEEDED' ? 'Pay on delivery' : order.PaymentStatus === 'SUCCEEDED' ? 'Payment received' : order.PaymentStatus?.toLowerCase().replaceAll('_', ' ')}</p></div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 px-5 py-3.5 sm:px-6">
-        {!cancelled && <Link className="inline-flex items-center gap-2 text-xs font-medium text-stone-500 hover:text-[#8d5132]" to={`/orders/${order.OrderId}/tracking`}><Truck className="h-4 w-4" />Track delivery<ArrowUpRight className="h-3.5 w-3.5" /></Link>}
+        {delivered ? <Link className="inline-flex items-center gap-2 text-xs font-semibold text-[#8d5132]" to={`/orders/${order.OrderId}#reviews`}><Star className="h-4 w-4" />Rate & review products</Link> : !cancelled && <Link className="inline-flex items-center gap-2 text-xs font-medium text-stone-500 hover:text-[#8d5132]" to={`/orders/${order.OrderId}/tracking`}><Truck className="h-4 w-4" />Track delivery<ArrowUpRight className="h-3.5 w-3.5" /></Link>}
         <Link className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-[#8d5132]" to={`/orders/${order.OrderId}`}>View order details<ChevronRight className="h-4 w-4" /></Link>
       </div>
     </article>

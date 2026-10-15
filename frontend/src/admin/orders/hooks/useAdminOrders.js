@@ -14,6 +14,8 @@ export function useAdminOrderActions(orderId) {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
     queryClient.invalidateQueries({ queryKey: ['admin-order', orderId] });
+    queryClient.invalidateQueries({ queryKey: ['admin-shipments'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-refunds'] });
   };
   return {
     updateStatus: useMutation({ mutationFn: (payload) => adminOrdersApi.updateStatus(orderId, payload), onSuccess: invalidate }),

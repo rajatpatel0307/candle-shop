@@ -1,6 +1,12 @@
 import * as service from './shipping.service.js';
+import * as repository from './shipping.repository.js';
+import { listShipmentsSchema } from './shipping.validation.js';
 import { createShipmentSchema, orderIdSchema, shipmentIdSchema, trackingEventSchema, updateShipmentSchema } from './shipping.validation.js';
 import { ok, validate } from '../carts/carts.utils.js';
+
+export async function listAdmin(req, res) {
+  ok(res, 'Shipments loaded.', { shipments: await repository.listAdmin(validate(listShipmentsSchema, req.query)) });
+}
 
 export async function createShipment(req, res) {
   const { orderId } = validate(orderIdSchema, req.params);

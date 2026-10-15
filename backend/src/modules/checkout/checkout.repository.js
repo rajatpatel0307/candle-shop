@@ -241,6 +241,7 @@ export async function createOrderTransaction({ userId, session, pricing, shippin
       }
       await new sql.Request(transaction)
         .input('orderId', sql.UniqueIdentifier, orderId)
+        .input('productId', sql.UniqueIdentifier, item.ProductId)
         .input('variantId', sql.UniqueIdentifier, item.ProductVariantId)
         .input('sku', sql.NVarChar(100), item.SKU ?? null)
         .input('name', sql.NVarChar(200), item.ProductName)
@@ -250,10 +251,10 @@ export async function createOrderTransaction({ userId, session, pricing, shippin
         .input('lineTotal', sql.Decimal(18, 2), item.LineTotal)
         .query(`
           INSERT INTO dbo.OrderItems (
-            OrderId, ProductVariantId, SKUSnapshot, ProductNameSnapshot,
+            OrderId, ProductId, ProductVariantId, SKUSnapshot, ProductNameSnapshot,
             VariantNameSnapshot, UnitPrice, Quantity, DiscountAmount, TaxAmount, LineTotal
           )
-          VALUES (@orderId, @variantId, @sku, @name, @variant, @unitPrice, @quantity, 0, 0, @lineTotal);
+          VALUES (@orderId, @productId, @variantId, @sku, @name, @variant, @unitPrice, @quantity, 0, 0, @lineTotal);
         `);
     }
 

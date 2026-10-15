@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { MapPin, Package, UserRound, ArrowLeft, ChevronRight, Heart, Headphones, LogOut, ShieldCheck } from 'lucide-react';
+import { MapPin, Package, UserRound, ArrowLeft, ChevronRight, Heart, Headphones, LogOut, ShieldCheck, Star } from 'lucide-react';
 import { useAuth } from '../auth/hooks/useAuth.js';
 
 export function CustomerAccountLayout({ children }) {
@@ -30,7 +30,7 @@ export function CustomerAccountLayout({ children }) {
             </NavLink>)}
           </nav>
           <div className="hidden border-t border-stone-100 px-5 py-3 lg:grid">
-            {[[Heart, 'My wishlist', '/wishlist'], [Headphones, 'Help & support', '/support/tickets'], [ShieldCheck, 'Account security', '/sessions']].map(([Icon, label, to]) => <Link key={to} to={to} className="flex items-center gap-3 py-3 text-sm text-stone-500 transition hover:text-[#8d5132]"><Icon className="h-4 w-4" />{label}</Link>)}
+            {[[Heart, 'My wishlist', '/wishlist'], [Star, 'My reviews', '/account/reviews'], [Headphones, 'Help & support', '/support/tickets'], [ShieldCheck, 'Account security', '/sessions']].map(([Icon, label, to]) => <Link key={to} to={to} className="flex items-center gap-3 py-3 text-sm text-stone-500 transition hover:text-[#8d5132]"><Icon className="h-4 w-4" />{label}</Link>)}
           </div>
           <div className="hidden border-t border-stone-100 p-5 lg:block"><button type="button" onClick={signOut} disabled={loggingOut} className="flex items-center gap-3 text-sm font-medium text-stone-500 hover:text-red-700 disabled:opacity-50"><LogOut className="h-4 w-4" />{loggingOut ? 'Signing out...' : 'Sign out'}</button>{error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}</div>
         </aside>

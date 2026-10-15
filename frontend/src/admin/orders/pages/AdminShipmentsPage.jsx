@@ -1,6 +1,14 @@
-import { useAdminOrders } from '../hooks/useAdminOrders.js';
-
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { apiClient } from '../../../services/apiClient.js';
+import { AdminPageHeader, AdminPagination, AdminQueryState } from '../../shared/AdminUi.jsx';
+import { OrderStatusBadge } from '../../../features/orders/components/OrderStatusBadge.jsx';
+import { formatDate } from '../../../features/orders/utils/ordersHelpers.js';
 export function AdminShipmentsPage() {
-  const query = useAdminOrders({ status: 'SHIPPED' });
-  return <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6"><h1 className="text-4xl font-semibold">Shipments</h1><p className="mt-3 text-stone-600">Shipment work is managed from each order detail page.</p><p className="mt-5 text-sm">Shipped orders: {query.data?.pagination?.total || 0}</p></main>;
+  const [filters, setFilters] = useState({ page: 1, search: '', status: '' });
+  const query = useQuery({ queryKey: ['admin-shipments', filters], queryFn: async () => (await apiClient.get('/shipping/shipments', { params: { ...filters, limit: 25 } })).data.data.shipments });
+  const change = (key, value) => setFilters((current) => ({ ...current, [key]: value, page: 1 }));
+  const rows = query.data?.items || [];
+  return <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6"><AdminPageHeader title="Shipments" description="Find shipments by order, tracking number, or carrier. Open an order to dispatch a shipment or update tracking." /><section className="admin-panel mb-5 flex flex-wrap gap-3"><input aria-label="Search shipments" className="input min-w-48 flex-1" type="search" placeholder="Order, tracking number, or carrier" value={filters.search} onChange={(event) => change('search', event.target.value)} /><select aria-label="Shipment status" className="input sm:max-w-56" value={filters.status} onChange={(event) => change('status', event.target.value)}><option value="">All statuses</option>{['CREATED','LABEL_CREATED','PICKED_UP','IN_TRANSIT','OUT_FOR_DELIVERY','DELIVERED','DELIVERY_FAILED','RETURN_TO_SENDER','CANCELLED'].map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}</select></section><AdminQueryState query={query} empty={!rows.length} emptyText="No shipments match your filters. Create shipments from an order's details." />{!query.isPending && !query.isError && rows.length > 0 && <><section className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[850px] text-left text-sm"><thead><tr>{['Shipment / order','Carrier','Tracking','Status','Created',''].map((title) => <th key={title}>{title}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.ShipmentId} className="border-t"><td className="font-semibold">{row.ShipmentNumber}<p className="mt-1 text-xs font-normal text-stone-500">{row.OrderNumber}</p></td><td>{row.CarrierName}</td><td>{row.TrackingNumber || 'Not assigned'}</td><td><OrderStatusBadge status={row.ShipmentStatus} /></td><td>{formatDate(row.CreatedAtUtc)}</td><td><Link className="font-semibold text-[#8d5132]" to={`/admin/orders/${row.OrderId}`}>Manage order</Link></td></tr>)}</tbody></table></section><AdminPagination page={filters.page} limit={25} total={query.data.pagination.total} onPage={(page) => setFilters((current) => ({ ...current, page }))} /></>}</main>;
 }

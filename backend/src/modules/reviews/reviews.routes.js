@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../common/middleware/asyncHandler.js';
 import { authenticate } from '../auth/auth.middleware.js';
-import { create, listAdmin, listApproved, mine, moderate, remove, summary, update } from './reviews.controller.js';
+import { create, eligibility, listAdmin, listApproved, mine, moderate, remove, summary, update } from './reviews.controller.js';
 import { requireCustomer, requireReviewAdmin } from './reviews.policy.js';
 
 const router = Router();
 
 router.get('/products/:productId/reviews', asyncHandler(listApproved));
 router.get('/products/:productId/reviews/summary', asyncHandler(summary));
+router.get('/products/:productId/reviews/eligibility', authenticate, requireCustomer, asyncHandler(eligibility));
 router.post('/products/:productId/reviews', authenticate, requireCustomer, asyncHandler(create));
 router.get('/reviews/my-reviews', authenticate, requireCustomer, asyncHandler(mine));
 router.patch('/reviews/:reviewId', authenticate, requireCustomer, asyncHandler(update));

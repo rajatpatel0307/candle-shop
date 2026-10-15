@@ -25,15 +25,15 @@ export function AdminOrderDetailsPage() {
           <div className="grid gap-5">
             <OrderItemsList items={details.items} />
             <OrderAuditHistory history={details.history} />
-            <ShipmentTrackingPanel shipments={details.shipments} onDispatch={(id) => actions.dispatchShipment.mutate(id)} />
+            <ShipmentTrackingPanel shipments={details.shipments} pending={actions.dispatchShipment.isPending || actions.addTrackingEvent.isPending} onDispatch={(id) => actions.dispatchShipment.mutate(id)} onTrack={(payload) => actions.addTrackingEvent.mutate(payload)} />
           </div>
           <aside className="grid h-fit gap-5">
             <OrderPriceBreakdown order={details.order} />
-            <OrderProcessingPanel actions={actions} />
-            <ShipmentCreationForm pending={actions.createShipment.isPending} onSubmit={(payload) => actions.createShipment.mutate(payload)} />
+            <OrderProcessingPanel order={details.order} actions={actions} />
+            {['PROCESSING','READY_TO_SHIP'].includes(details.order.OrderStatus) && <ShipmentCreationForm pending={actions.createShipment.isPending} onSubmit={(payload) => actions.createShipment.mutate(payload)} />}
             <RefundManagementPanel
               refunds={details.refunds}
-              pending={actions.createRefund.isPending}
+              pending={actions.createRefund.isPending || actions.approveRefund.isPending}
               onCreate={(payload) => actions.createRefund.mutate(payload)}
               onApprove={(refundId) => actions.approveRefund.mutate(refundId)}
             />

@@ -10,6 +10,10 @@ export async function summary(req, res) {
   const { productId } = validate(productIdSchema, req.params);
   ok(res, 'Review summary loaded.', { summary: await service.summary(productId) });
 }
+export async function eligibility(req, res) {
+  const { productId } = validate(productIdSchema, req.params);
+  ok(res, 'Review eligibility loaded.', { eligibility: await service.eligibility(req.user.id, productId) });
+}
 export async function create(req, res) {
   const { productId } = validate(productIdSchema, req.params);
   ok(res.status(201), 'Review submitted.', { review: await service.create(req.user.id, productId, validate(reviewCreateSchema, req.body)) });

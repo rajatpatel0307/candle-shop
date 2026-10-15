@@ -18,7 +18,7 @@ export function ReviewModerationModal({ review, pending = false, onClose, onMode
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-stone-500">{review.ProductName}</p>
-            <h2 className="mt-1 text-2xl font-semibold text-stone-900">Moderate review</h2>
+            <h2 className="mt-1 text-2xl font-semibold text-stone-900">Review details</h2>
           </div>
           <button className="text-sm font-semibold text-stone-500 hover:text-stone-900" type="button" onClick={onClose}>
             Close
@@ -48,11 +48,11 @@ export function ReviewModerationModal({ review, pending = false, onClose, onMode
           <button className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700" type="button" onClick={onClose}>
             Cancel
           </button>
-          <button className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-60" type="button" disabled={pending} onClick={() => submit('REJECTED')}>
-            Reject
+          <button className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-60" type="button" disabled={pending} onClick={() => submit('HIDDEN')}>
+            Hide review
           </button>
           <button className="rounded-lg bg-[#8d5132] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" type="button" disabled={pending} onClick={() => submit('APPROVED')}>
-            Approve
+            Restore review
           </button>
         </div>
       </section>

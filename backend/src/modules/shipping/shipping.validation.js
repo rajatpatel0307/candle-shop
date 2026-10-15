@@ -2,6 +2,12 @@ import { z } from 'zod';
 import { SHIPMENT_STATUS } from './shipping.constants.js';
 
 const guid = z.string().uuid();
+export const listShipmentsSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(25),
+  search: z.string().trim().max(150).optional(),
+  status: z.union([z.nativeEnum(SHIPMENT_STATUS), z.literal('')]).optional(),
+});
 
 export const orderIdSchema = z.object({ orderId: guid });
 export const shipmentIdSchema = z.object({ shipmentId: guid });

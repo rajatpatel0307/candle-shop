@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { DATE_RANGE_PRESETS, SETTING_TYPES } from './admin.constants.js';
 
-const guid = z.string().uuid();
-
 const dateRangeBaseSchema = z.object({
   range: z.enum(DATE_RANGE_PRESETS).default('last30'),
   from: z.coerce.date().optional(),
@@ -27,12 +25,12 @@ export const listQuerySchema = dateRangeBaseSchema.extend({
   status: z.string().trim().max(50).optional(),
 }).superRefine(refineRange);
 
-export const auditLogIdSchema = z.object({ id: guid });
+export const auditLogIdSchema = z.object({ id: z.string().regex(/^[1-9]\d*$/, 'A positive audit record ID is required.').refine((value) => /^[1-9]\d*$/.test(value) && BigInt(value) <= 9223372036854775807n, 'Audit record ID is out of range.') });
 
-export const settingKeySchema = z.object({ key: z.string().trim().min(1).max(150) });
+export const settingKeySchema = z.object({ key: z.string().trim().min(1).max(100) });
 
 export const settingUpsertSchema = z.object({
-  settingKey: z.string().trim().min(1).max(150).optional(),
+  settingKey: z.string().trim().min(1).max(100).optional(),
   settingValue: z.any().optional(),
   valueType: z.enum(SETTING_TYPES).default('string'),
   description: z.string().trim().max(500).optional(),
@@ -40,5 +38,5 @@ export const settingUpsertSchema = z.object({
 });
 
 export const settingsBulkSchema = z.object({
-  settings: z.array(settingUpsertSchema.extend({ settingKey: z.string().trim().min(1).max(150) })).min(1).max(50),
+  settings: z.array(settingUpsertSchema.extend({ settingKey: z.string().trim().min(1).max(100) })).min(1).max(50),
 });

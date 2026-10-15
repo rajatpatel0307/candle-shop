@@ -2,6 +2,24 @@ import { randomUUID } from 'node:crypto';
 import { getPool, sql } from '../../config/database.js';
 import { SHIPMENT_STATUS } from './shipping.constants.js';
 
+export async function listAdmin({ page, limit, search, status }) {
+  const pool = await getPool();
+  const request = pool.request().input('limit', sql.Int, limit).input('offset', sql.Int, (page - 1) * limit);
+  const where = ['1 = 1'];
+  if (search) {
+    request.input('search', sql.NVarChar(180), `%${search}%`);
+    where.push('(s.ShipmentNumber LIKE @search OR s.TrackingNumber LIKE @search OR o.OrderNumber LIKE @search OR s.CarrierName LIKE @search)');
+  }
+  if (status) { request.input('status', sql.VarChar(30), status); where.push('s.ShipmentStatus = @status'); }
+  const result = await request.query(`
+    SELECT s.*, o.OrderNumber, COUNT(*) OVER() AS TotalRows
+    FROM dbo.Shipments s INNER JOIN dbo.Orders o ON o.OrderId = s.OrderId
+    WHERE ${where.join(' AND ')} ORDER BY s.CreatedAtUtc DESC, s.ShipmentId DESC
+    OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
+  `);
+  return { items: result.recordset.map(({ TotalRows, ...row }) => row), pagination: { page, limit, total: Number(result.recordset[0]?.TotalRows || 0) } };
+}
+
 export async function getOrder(orderId) {
   const pool = await getPool();
   const result = await pool.request()
@@ -88,21 +106,19 @@ export async function addTrackingEvent({ shipmentId, input, userId }) {
   const pool = await getPool();
   try {
     const result = await pool.request()
-      .input('id', sql.UniqueIdentifier, randomUUID())
       .input('shipmentId', sql.UniqueIdentifier, shipmentId)
       .input('providerEventId', sql.NVarChar(200), input.providerEventId ?? null)
       .input('status', sql.VarChar(30), input.trackingStatus)
       .input('description', sql.NVarChar(500), input.eventDescription ?? null)
       .input('location', sql.NVarChar(200), input.eventLocation ?? null)
       .input('occurredAt', sql.DateTime2, input.occurredAtUtc)
-      .input('userId', sql.UniqueIdentifier, userId ?? null)
       .query(`
         INSERT INTO dbo.ShipmentTrackingEvents (
-          ShipmentTrackingEventId, ShipmentId, ProviderEventId, TrackingStatus,
-          EventDescription, EventLocation, OccurredAtUtc, CreatedByUserId
+          ShipmentId, CarrierEventCode, EventStatus,
+          EventDescription, EventLocation, EventAtUtc
         )
         OUTPUT inserted.*
-        VALUES (@id, @shipmentId, @providerEventId, @status, @description, @location, @occurredAt, @userId);
+        VALUES (@shipmentId, @providerEventId, @status, @description, @location, @occurredAt);
       `);
     await updateShipment(shipmentId, { shipmentStatus: input.trackingStatus });
     return { event: result.recordset[0], duplicate: false };
@@ -116,6 +132,6 @@ export async function listTrackingEvents(shipmentId) {
   const pool = await getPool();
   const result = await pool.request()
     .input('shipmentId', sql.UniqueIdentifier, shipmentId)
-    .query('SELECT * FROM dbo.ShipmentTrackingEvents WHERE ShipmentId = @shipmentId ORDER BY OccurredAtUtc DESC;');
+    .query('SELECT *, EventStatus AS TrackingStatus, CarrierEventCode AS ProviderEventId FROM dbo.ShipmentTrackingEvents WHERE ShipmentId = @shipmentId ORDER BY OccurredAtUtc DESC;');
   return result.recordset;
 }

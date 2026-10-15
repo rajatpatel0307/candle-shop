@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import * as audit from './admin.audit.service.js';
 import { AppError } from '../../common/errors/AppError.js';
 import { databaseRequestError, databaseSchemaError, databaseUnavailableError, isDatabaseConnectionError, isDatabaseRequestError, isDatabaseSchemaError } from '../../common/errors/databaseErrors.js';
 import { asyncHandler } from '../../common/middleware/asyncHandler.js';
@@ -111,6 +112,7 @@ router.post('/resources/:resource', asyncHandler(async (req, res) => {
     if (isDatabaseRequestError(error)) throw databaseRequestError(error);
     throw error;
   }
+  await audit.record({ userId: req.user.id, action: 'RECORD_CREATE', entityName: resource.table, entityId: Array.isArray(resource.id) ? resource.id.map((key) => item[key]).join(',') : item?.[resource.id], req });
   res.status(201).json({ data: item });
 }));
 
@@ -126,6 +128,7 @@ router.put('/resources/:resource/:id', asyncHandler(async (req, res) => {
     throw error;
   }
   if (!item) throw new AppError(404, 'ROW_NOT_FOUND', 'Record was not found.');
+  await audit.record({ userId: req.user.id, action: 'RECORD_UPDATE', entityName: resource.table, entityId: req.params.id, req });
   res.json({ data: item });
 }));
 
@@ -141,6 +144,7 @@ router.delete('/resources/:resource/:id', asyncHandler(async (req, res) => {
     throw error;
   }
   if (!deleted) throw new AppError(404, 'ROW_NOT_FOUND', 'Record was not found.');
+  await audit.record({ userId: req.user.id, action: 'RECORD_DELETE', entityName: resource.table, entityId: req.params.id, req });
   res.status(204).send();
 }));
 

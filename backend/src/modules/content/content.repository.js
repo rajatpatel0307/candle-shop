@@ -363,8 +363,11 @@ export async function updatePage(id, input, userId) {
 export async function listAdminSeo(query) {
   const pool = await getPool();
   const { limit, offset } = pagination(query);
-  const result = await pool.request().input('limit', sql.Int, limit).input('offset', sql.Int, offset).query(`
+  const request = pool.request().input('limit', sql.Int, limit).input('offset', sql.Int, offset);
+  if (query.search) request.input('search', sql.NVarChar(220), `%${query.search}%`);
+  const result = await request.query(`
     SELECT *, COUNT(1) OVER() AS TotalRows FROM dbo.SeoMetadata
+    ${query.search ? 'WHERE MetaTitle LIKE @search OR Path LIKE @search OR MetaDescription LIKE @search' : ''}
     ORDER BY UpdatedAtUtc DESC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
   `);
   return { rows: result.recordset.map(({ TotalRows, ...row }) => seoRow(row)), total: Number(result.recordset[0]?.TotalRows || 0) };
@@ -409,7 +412,11 @@ export async function deleteSeo(id) {
 export async function listAdminFeatured(query) {
   const pool = await getPool();
   const { limit, offset } = pagination(query);
-  const result = await pool.request().input('limit', sql.Int, limit).input('offset', sql.Int, offset).query(`
+  const request = pool.request().input('limit', sql.Int, limit).input('offset', sql.Int, offset);
+  const where = ['1 = 1'];
+  if (query.search) { request.input('search', sql.NVarChar(220), `%${query.search}%`); where.push('(p.ProductName LIKE @search OR fp.SectionKey LIKE @search)'); }
+  if (query.status) { request.input('status', sql.VarChar(30), query.status); where.push('fp.FeaturedStatus = @status'); }
+  const result = await request.query(`
     SELECT fp.*, p.ProductName, p.Slug, p.ShortDescription, c.CategoryName,
            MIN(v.SellingPrice) AS SellingPrice, MAX(v.CompareAtPrice) AS CompareAtPrice, MAX(i.ImageUrl) AS ImageUrl,
            COUNT(1) OVER() AS TotalRows
@@ -418,6 +425,7 @@ export async function listAdminFeatured(query) {
     INNER JOIN dbo.Categories c ON c.CategoryId = p.CategoryId
     LEFT JOIN dbo.ProductVariants v ON v.ProductId = p.ProductId AND v.IsActive = 1
     LEFT JOIN dbo.ProductImages i ON i.ProductId = p.ProductId AND i.IsPrimary = 1
+    WHERE ${where.join(' AND ')}
     GROUP BY fp.FeaturedProductId, fp.ProductId, fp.SectionKey, fp.DisplayOrder, fp.FeaturedStatus, fp.StartAtUtc, fp.EndAtUtc, fp.CreatedByUserId, fp.UpdatedByUserId, fp.CreatedAtUtc, fp.UpdatedAtUtc, p.ProductName, p.Slug, p.ShortDescription, c.CategoryName
     ORDER BY fp.SectionKey, fp.DisplayOrder OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
   `);

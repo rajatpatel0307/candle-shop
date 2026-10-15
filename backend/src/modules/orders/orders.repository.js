@@ -87,7 +87,14 @@ export async function getOrderDetails(orderId, userId = null) {
   const pool = await getPool();
   const request = pool.request().input('orderId', sql.UniqueIdentifier, orderId);
   const [items, addresses, history, shipments, refunds, cancellations, reservations] = await Promise.all([
-    request.query('SELECT * FROM dbo.OrderItems WHERE OrderId = @orderId ORDER BY CreatedAtUtc ASC;'),
+    request.query(`SELECT oi.*, COALESCE(oi.ProductId,v.ProductId) AS ResolvedProductId, p.Slug AS ProductSlug,
+      review.ProductReviewId AS MyReviewId, review.Rating AS MyRating, review.ReviewStatus AS MyReviewStatus,
+      review.ReviewTitle AS MyReviewTitle, review.ReviewText AS MyReviewText
+      FROM dbo.OrderItems oi LEFT JOIN dbo.ProductVariants v ON v.ProductVariantId=oi.ProductVariantId
+      LEFT JOIN dbo.Products p ON p.ProductId=COALESCE(oi.ProductId,v.ProductId)
+      OUTER APPLY (SELECT TOP 1 r.* FROM dbo.ProductReviews r INNER JOIN dbo.Orders o ON o.OrderId=oi.OrderId
+        WHERE r.ProductId=COALESCE(oi.ProductId,v.ProductId) AND r.UserId=o.UserId ORDER BY r.CreatedAtUtc DESC) review
+      WHERE oi.OrderId=@orderId ORDER BY oi.CreatedAtUtc ASC;`),
     pool.request().input('orderId', sql.UniqueIdentifier, orderId).query('SELECT * FROM dbo.OrderAddresses WHERE OrderId = @orderId ORDER BY AddressType DESC;'),
     pool.request().input('orderId', sql.UniqueIdentifier, orderId).query('SELECT * FROM dbo.OrderStatusHistory WHERE OrderId = @orderId ORDER BY ChangedAtUtc ASC;'),
     pool.request().input('orderId', sql.UniqueIdentifier, orderId).query('SELECT * FROM dbo.Shipments WHERE OrderId = @orderId ORDER BY CreatedAtUtc DESC;'),
@@ -98,7 +105,7 @@ export async function getOrderDetails(orderId, userId = null) {
   const shipmentRows = shipments.recordset;
   const trackingEvents = shipmentRows.length
     ? await pool.request().input('orderId', sql.UniqueIdentifier, orderId).query(`
-        SELECT te.*
+        SELECT te.*, te.EventStatus AS TrackingStatus
         FROM dbo.ShipmentTrackingEvents te
         INNER JOIN dbo.Shipments s ON s.ShipmentId = te.ShipmentId
         WHERE s.OrderId = @orderId
@@ -110,7 +117,7 @@ export async function getOrderDetails(orderId, userId = null) {
     return map;
   }, {});
   const shipmentsWithEvents = shipmentRows.map((shipment) => ({ ...shipment, trackingEvents: eventsByShipment[shipment.ShipmentId] || [] }));
-  return { order, items: items.recordset, addresses: addresses.recordset, history: history.recordset, shipments: shipmentsWithEvents, refunds: refunds.recordset, cancellations: cancellations.recordset, reservations: reservations.recordset };
+  return { order, items: items.recordset.map(({ ResolvedProductId, ...item }) => ({ ...item, ProductId: ResolvedProductId })), addresses: addresses.recordset, history: history.recordset, shipments: shipmentsWithEvents, refunds: refunds.recordset, cancellations: cancellations.recordset, reservations: reservations.recordset };
 }
 
 export async function updateOrderStatus({ orderId, nextStatus, userId, reason, source = 'ADMIN' }) {

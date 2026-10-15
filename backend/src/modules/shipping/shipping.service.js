@@ -16,7 +16,7 @@ function assertShipmentTransition(current, next) {
 export async function createShipment(orderId, input, userId) {
   const order = await repo.getOrder(orderId);
   if (!order) throw new AppError(404, 'ORDER_NOT_FOUND', 'Order was not found.');
-  if (!['CONFIRMED', 'PROCESSING', 'READY_TO_SHIP'].includes(order.OrderStatus)) {
+  if (!['PROCESSING', 'READY_TO_SHIP'].includes(order.OrderStatus)) {
     throw new AppError(409, 'ORDER_NOT_SHIPPABLE', 'Order is not eligible for shipment.');
   }
   const shipment = await repo.createShipment({

@@ -1,3 +1,4 @@
+import { AdminQueryState } from '../../shared/AdminUi.jsx';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { InventorySummaryCards } from '../components/InventorySummaryCards.jsx';
@@ -18,7 +19,7 @@ export function InventoryDashboard() {
         </div>
         <Link className="btn-primary" to="/admin/inventory">View inventory <ArrowRight className="h-4 w-4" /></Link>
       </div>
-      <div className="grid gap-5">
+      <AdminQueryState query={summary} /><AdminQueryState query={alerts} /><div className="grid gap-5">
         <InventorySummaryCards summary={summary.data || {}} />
         <LowStockAlerts items={alerts.data?.items || []} />
         <InventoryTable items={alerts.data?.items || []} loading={alerts.isLoading} />
