@@ -1,20 +1,14 @@
+import { useState } from 'react';
+import { ArrowUpRight, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { ProductCard } from '../../../shared/components/ProductCard.jsx';
-
-export function FeaturedProducts({ products = [] }) {
-  if (!products.length) return null;
-  return (
-    <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">
-      <div className="mb-6 flex items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase text-[#697565]">Featured</p>
-          <h2 className="text-3xl font-semibold">Ready to light</h2>
-        </div>
-        <Link to="/shop" className="text-sm font-semibold text-[#8d5132]">Shop all</Link>
-      </div>
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {products.slice(0, 6).map((product) => <ProductCard key={product.id || product.ProductId || product.productId} product={product} />)}
-      </div>
-    </section>
-  );
+import { HomeProductCard } from './HomeProductCard.jsx';
+const labels={Candle:'Candles',GiftSet:'Gift sets',Accessory:'Accessories',Other:'More to discover'};
+export function FeaturedProducts({products=[],pending=false,error,onRetry}) {
+  const [type,setType]=useState('all');
+  const types=[...new Set(products.map((product) => product.ProductType).filter(Boolean))];
+  const active=type==='all' || types.includes(type) ? type:'all';
+  const filtered=products.filter((product) => active==='all' || product.ProductType===active).slice(0,4);
+  return <section id="the-collection" className="home-section scroll-mt-24"><div className="mb-8 flex flex-wrap items-end justify-between gap-5"><div><p className="home-eyebrow">The studio edit</p><h2 className="home-heading mt-3">Find your next favourite.</h2></div><Link to="/shop" className="home-text-link flex items-center gap-4">Shop the collection<ArrowUpRight className="h-4 w-4" /></Link></div>{types.length>1 && <div role="group" aria-label="Filter products" className="mb-7 flex flex-wrap gap-2">{['all',...types].map((value) => <button key={value} type="button" aria-pressed={active===value} onClick={() => setType(value)} className={`rounded-full border px-5 py-2 text-xs transition ${active===value ? 'border-[#66503c] bg-[#66503c] text-white':'border-[#ded5c8] text-[#796b5b] hover:border-[#66503c]'}`}>{value==='all' ? 'All pieces':labels[value] || value}</button>)}</div>}
+    {pending ? <div role="status" aria-label="Loading the collection" className="grid grid-cols-2 gap-5 lg:grid-cols-4">{[1,2,3,4].map((key) => <div key={key} className="aspect-[4/5] animate-pulse bg-[#eee7dd]" />)}</div> : error && !products.length ? <div role="alert" className="border border-[#e5dbcd] bg-[#f7f2e9] p-8 text-center"><p className="text-sm text-[#796b5b]">We couldn't load the collection just now.</p><button className="home-text-link mt-4 inline-flex items-center gap-2" onClick={onRetry}><RefreshCw className="h-3.5 w-3.5" />Try again</button></div> : !filtered.length ? <div className="border border-[#e5dbcd] p-10 text-center"><p className="font-serif text-2xl">Something lovely is on its way.</p><p className="mt-3 text-sm text-[#807568]">Explore the shop for the latest collection.</p><Link className="home-text-link mt-5 inline-block" to="/shop">Visit the shop</Link></div> : <div className={`grid gap-x-6 gap-y-10 sm:grid-cols-2 ${filtered.length>=3 ? 'lg:grid-cols-4':filtered.length===2 ? 'lg:grid-cols-3':''}`}>{filtered.map((product) => <HomeProductCard key={product.ProductId || product.productId} product={product} />)}{filtered.length<3 && <Link to="/shop" className="group relative flex min-h-[340px] flex-col justify-end overflow-hidden bg-[#c2b5a2] p-7 text-white"><img src="/images/home/candle-detail.jpg" alt="A lit candle casting a warm glow" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-t from-[#211d15]/80 via-transparent to-transparent" /><div className="relative"><p className="text-[9px] uppercase tracking-[.22em] text-white/70">The everyday ritual</p><h3 className="mt-3 max-w-60 font-serif text-4xl leading-tight">A glow to come home to.</h3><span className="mt-5 inline-flex items-center gap-4 border-b border-white/50 pb-1 text-xs">Discover the collection<ArrowUpRight className="h-4 w-4" /></span></div></Link>}</div>}
+  </section>;
 }

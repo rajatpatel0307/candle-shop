@@ -420,13 +420,14 @@ function HeaderCountLink({ to, label, icon: Icon, count, pending, error, classNa
     <Link to={to} className={`icon-btn relative ${className}`} aria-label={`${label}, ${countLabel}`} title={`${label}: ${countLabel}`}>
       <Icon className="h-4 w-4" />
       {(pending || error || count > 0) && <span aria-live="polite" aria-atomic="true" className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#8d5132] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#f7f2ea]">
-        {pending ? 'â€¦' : error ? '?' : count}
+        {pending ? '\u2026' : error ? '?' : count}
       </span>}
     </Link>
   );
 }
 
 function Shell({ children }) {
+  const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const { isAuthenticated } = useAuth();
   const cart = useCart();
@@ -435,7 +436,7 @@ function Shell({ children }) {
   const wishlistCount = isAuthenticated ? Number(wishlist.data?.summary?.totalItems || 0) : 0;
 
   return (
-    <div className="min-h-screen bg-[#f7f2ea] text-[#2f2722]">
+    <div className={`min-h-screen bg-[#f7f2ea] text-[#2f2722] ${pathname === '/' ? 'home-storefront' : ''}`}>
       <header className="sticky top-0 z-30 border-b border-stone-200/80 bg-[#f7f2ea]/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Link to="/" className="flex min-w-fit items-center gap-2 text-lg font-semibold" onClick={() => setMenuOpen(false)}>
@@ -458,7 +459,7 @@ function Shell({ children }) {
         {menuOpen && (
           <nav className="border-t border-stone-200 bg-[#f7f2ea] px-4 py-3 text-sm font-semibold md:hidden" aria-label="Mobile navigation">
             <div className="mx-auto grid max-w-7xl gap-1">
-              {[...primaryNav, { to: '/wishlist', label: `Wishlist (${isAuthenticated && wishlist.isPending ? 'â€¦' : isAuthenticated && wishlist.isError && !wishlist.data ? '?' : wishlistCount})` }, { to: '/orders', label: 'Orders' }, { to: '/support/tickets', label: 'Support' }].map((item) => (
+              {[...primaryNav, { to: '/wishlist', label: `Wishlist (${isAuthenticated && wishlist.isPending ? '\u2026' : isAuthenticated && wishlist.isError && !wishlist.data ? '?' : wishlistCount})` }, { to: '/orders', label: 'Orders' }, { to: '/support/tickets', label: 'Support' }].map((item) => (
                 <NavLink key={item.to} to={item.to} className={navClass} onClick={() => setMenuOpen(false)}>{item.label}</NavLink>
               ))}
             </div>
@@ -473,7 +474,7 @@ function Shell({ children }) {
               <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#2f2722] text-white"><Flame className="h-5 w-5 text-[#f0c28d]" /></span>
               Candle Studio
             </Link>
-            <p className="mt-4 max-w-sm leading-6 text-stone-600">Scented candles, gift sets, and home fragrance essentials managed by a full commerce and content dashboard.</p>
+            <p className="mt-4 max-w-sm leading-6 text-stone-600">A little light for everyday living. Discover candles, thoughtful gifts, and moments that make a house feel like home.</p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link to="/shop" className="btn-primary px-4 py-2">Shop candles</Link>
               <Link to="/contact" className="btn-secondary px-4 py-2">Contact support</Link>

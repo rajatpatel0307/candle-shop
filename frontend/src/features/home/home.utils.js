@@ -3,5 +3,5 @@ export function eligibleItems(items = []) {
 }
 
 export function heroImage(slide) {
-  return slide?.desktopImageUrl || slide?.imageUrl || 'https://images.unsplash.com/photo-1605651202774-7d573fd3f12d?auto=format&fit=crop&w=1800&q=80';
+  return slide?.desktopImageUrl || slide?.imageUrl || '/images/home/candle-atmosphere.jpg';
 }

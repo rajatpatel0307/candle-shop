@@ -1,24 +1,18 @@
+import { ArrowUpRight, Flame } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
 import { heroImage } from '../home.utils.js';
-
-export function BannerSlide({ slide, active }) {
-  return (
-    <article className={`absolute inset-0 transition-opacity duration-700 ${active ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
-      <picture>
-        {slide.mobileImageUrl && <source media="(max-width: 640px)" srcSet={slide.mobileImageUrl} />}
-        <img src={heroImage(slide)} alt={slide.altText || slide.title} className="absolute inset-0 h-full w-full object-cover opacity-65" loading={active ? 'eager' : 'lazy'} />
-      </picture>
-      <div className="absolute inset-0 bg-stone-950/30" />
-      <div className="relative mx-auto flex min-h-[72vh] max-w-7xl flex-col justify-end px-4 pb-16 pt-24 sm:px-6">
-        {slide.subtitle && <p className="mb-3 flex items-center gap-2 text-sm font-medium uppercase"><Sparkles className="h-4 w-4" /> {slide.subtitle}</p>}
-        <h1 className="max-w-3xl text-5xl font-semibold leading-tight md:text-7xl">{slide.title}</h1>
-        {slide.description && <p className="mt-5 max-w-2xl text-lg leading-8 text-stone-100">{slide.description}</p>}
-        <div className="mt-8 flex flex-wrap gap-3">
-          {slide.buttonText && slide.buttonUrl && <Link to={slide.buttonUrl} className="btn-primary">{slide.buttonText}</Link>}
-          {slide.secondaryButtonText && slide.secondaryButtonUrl && <Link to={slide.secondaryButtonUrl} className="btn-secondary">{slide.secondaryButtonText}</Link>}
-        </div>
+export function BannerSlide({ slide, active, index = 0 }) {
+  return <article aria-hidden={!active} inert={!active ? '' : undefined} className={`home-hero-slide ${active ? 'is-active' : ''}`}>
+    <div className="home-hero-copy">
+      <p className="home-eyebrow"><span className="inline-block h-px w-7 bg-current" />{slide.subtitle || 'A moment for yourself'}</p>
+      {index === 0 ? <h1 className="home-display whitespace-pre-line">{slide.title}</h1> : <h2 className="home-display whitespace-pre-line">{slide.title}</h2>}
+      {slide.description && <p className="home-hero-description">{slide.description}</p>}
+      <div className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-5">
+        <Link to={slide.buttonUrl || '/shop'} className="home-button">{slide.buttonText || 'Shop the collection'}<ArrowUpRight className="h-4 w-4" /></Link>
+        <Link to={slide.secondaryButtonUrl || '/about'} className="home-text-link">{slide.secondaryButtonText || 'Our story'}</Link>
       </div>
-    </article>
-  );
+      <p className="mt-10 flex items-center gap-2.5 text-[11px] tracking-wide text-[#807568]"><Flame className="h-4 w-4 text-[#a06843]" />A small ritual. A space that feels like you.</p>
+    </div>
+    <div className="home-hero-media"><picture>{slide.mobileImageUrl && <source media="(max-width:640px)" srcSet={slide.mobileImageUrl} />}<img src={heroImage(slide)} alt={slide.altText || slide.title} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} onError={(event) => {event.currentTarget.onerror=null;event.currentTarget.src='/images/home/candle-atmosphere.jpg';}} /></picture><div className="home-hero-note"><span className="home-eyebrow text-[9px]">The everyday, illuminated</span><p className="mt-2 font-serif text-2xl italic text-[#514335]">Stay a little longer.</p></div><span className="absolute right-5 top-5 bg-[#fcf9f2]/85 px-3 py-2 text-[9px] uppercase tracking-[.25em] text-[#58452f]">Candle Studio</span></div>
+  </article>;
 }
