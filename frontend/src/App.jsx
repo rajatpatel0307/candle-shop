@@ -190,70 +190,15 @@ const adminNavSections = [
 
 function AdminSidebar({ onNavigate }) {
   const { user } = useAuth();
-  const [search, setSearch] = useState('');
-
-  return (
-    <aside className="flex h-full flex-col border-stone-200 bg-[#2f2722] text-stone-100 lg:sticky lg:top-0 lg:h-screen lg:w-72 lg:border-r">
-      <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
-        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[#f0c28d] text-[#2f2722]"><Flame className="h-5 w-5" /></span>
-        <div>
-          <p className="font-semibold">Admin Panel</p>
-          <p className="text-xs text-stone-300">Candle Studio</p>
-        </div>
-      </div>
-      <div className="px-4 pt-4"><label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3"><Search className="h-4 w-4 text-stone-400" /><input type="search" aria-label="Search admin pages" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a page..." className="min-w-0 w-full bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-stone-400" /></label></div>
-      <nav className="grid flex-1 content-start gap-5 overflow-y-auto px-3 py-5 text-sm" aria-label="Admin navigation">
-        {adminNavSections.map((section) => {
-          const items = section.items.filter((item) => hasAnyRole(user, item.roles) && `${section.title} ${item.label}`.toLowerCase().includes(search.toLowerCase().trim()));
-          if (items.length === 0) return null;
-
-          return (
-            <section key={section.title}>
-              <h2 className="px-3 text-xs font-semibold uppercase tracking-wide text-stone-400">{section.title}</h2>
-              <div className="mt-2 grid gap-1">
-                {items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      className={({ isActive }) => `flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition ${isActive ? 'bg-[#f0c28d] text-[#2f2722] shadow-sm' : 'text-stone-200 hover:bg-white/10 hover:text-white'}`}
-                      onClick={onNavigate}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {item.label}
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
-        {search && !adminNavSections.some((section) => section.items.some((item) => hasAnyRole(user, item.roles) && `${section.title} ${item.label}`.toLowerCase().includes(search.toLowerCase().trim()))) && <p className="px-3 text-stone-400">No pages match your search.</p>}
-      </nav>
-      <div className="border-t border-white/10 p-4"><Link to="/" onClick={onNavigate} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-3 text-sm text-stone-200 hover:bg-white/10">View storefront<ArrowRight className="h-4 w-4" /></Link></div>
-    </aside>
-  );
+  const [search,setSearch] = useState('');
+  const sections=adminNavSections.map((section)=>({...section,items:section.items.filter((item)=>hasAnyRole(user,item.roles) && `${section.title} ${item.label}`.toLowerCase().includes(search.toLowerCase().trim()))})).filter((section)=>section.items.length);
+  return <aside className="admin-sidebar flex h-full flex-col lg:sticky lg:top-0 lg:h-screen"><Link to="/admin/dashboard" onClick={onNavigate} className="admin-sidebar-brand"><span className="admin-brand-mark"><Flame className="h-6 w-6" strokeWidth={1.2}/></span><span><span className="block font-serif text-xl">Candle Studio</span><small>Store management</small></span></Link><div className="admin-sidebar-search"><label><Search className="h-4 w-4 shrink-0" strokeWidth={1.4}/><input type="search" aria-label="Search admin pages" value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Find a page..."/></label></div><nav className="admin-sidebar-nav" aria-label="Admin navigation">{sections.map((section)=><section key={section.title}><h2>{section.title}</h2><div>{section.items.map((item)=>{const Icon=item.icon;return <NavLink key={item.to} to={item.to} className={({isActive})=>`admin-nav-link ${isActive ? 'is-active':''}`} onClick={onNavigate}><Icon className="h-[17px] w-[17px] shrink-0" strokeWidth={1.4}/><span>{item.label}</span></NavLink>;})}</div></section>)}{!sections.length && <p className="px-3 text-xs leading-6 text-[#80715f]">No pages match your search.</p>}</nav><div className="admin-sidebar-footer"><Link to="/admin/profile" onClick={onNavigate} className="admin-staff-link"><span className="admin-staff-avatar">{user?.firstName?.[0] || 'A'}</span><span className="min-w-0 flex-1"><span className="block truncate text-xs font-medium">{user?.firstName || 'Your profile'} {user?.lastName || ''}</span><small>{hasAnyRole(user,['ADMIN']) ? 'Administrator':'Support team'}</small></span><UserRound className="h-4 w-4" strokeWidth={1.3}/></Link><Link to="/" onClick={onNavigate} className="admin-store-link">View storefront<ArrowRight className="h-3.5 w-3.5"/></Link></div></aside>;
 }
 
-function AdminHeader() {
+function AdminHeader({ onOpenMenu, menuTrigger, mobileOpen }) {
   const { user } = useAuth();
-  const roleLabel = hasAnyRole(user, ['ADMIN']) ? 'Administrator' : 'Support';
-
-  return (
-    <header className="z-30 border-b border-stone-200 bg-[#f7f2ea]/95 px-4 py-3 backdrop-blur sm:px-6 lg:sticky lg:top-0">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-[#2f2722]">Candle Studio</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="hidden rounded-full bg-white px-3 py-1 text-xs font-semibold text-stone-600 shadow-sm sm:inline-flex">{roleLabel}</span>
-          <NotificationBell />
-          <AccountMenu />
-        </div>
-      </div>
-    </header>
-  );
+  const roleLabel=hasAnyRole(user,['ADMIN']) ? 'Administrator':'Support';
+  return <header className="admin-topbar sticky top-0 z-40 border-b border-stone-200 px-4 py-4 backdrop-blur sm:px-7"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><button ref={menuTrigger} type="button" className="icon-btn lg:hidden" aria-label="Open admin menu" aria-controls="mobile-admin-menu" aria-expanded={mobileOpen} onClick={onOpenMenu}><Menu className="h-4 w-4"/></button><p className="admin-topbar-title">Candle Studio</p></div><div className="flex items-center gap-2"><span className="admin-role-tag hidden sm:inline-flex">{roleLabel}</span><NotificationBell/><AccountMenu/></div></div></header>;
 }
 
 function AdminLayout({ children }) {
@@ -279,24 +224,15 @@ function AdminLayout({ children }) {
   }, [mobileOpen]);
 
   return (
-    <div className="admin-workspace min-h-screen bg-[#f7f5f1] text-[#2f2722] lg:grid lg:grid-cols-[18rem_1fr]">
+    <div className="admin-workspace min-h-screen bg-[#fcf9f2] text-[#43372b] lg:grid lg:grid-cols-[250px_minmax(0,1fr)]">
       <div className="hidden lg:block">
         <AdminSidebar />
       </div>
       <div className="lg:hidden">
-        <div className="sticky top-0 z-40 flex items-center justify-between border-b border-stone-200 bg-[#f7f2ea] px-4 py-3">
-          <Link to="/admin/dashboard" className="flex items-center gap-2 font-semibold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#2f2722] text-white"><Flame className="h-5 w-5 text-[#f0c28d]" /></span>
-            Admin Panel
-          </Link>
-          <button ref={mobileTrigger} aria-controls="mobile-admin-menu" className="icon-btn" type="button" aria-label={mobileOpen ? 'Close admin menu' : 'Open admin menu'} aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>
-            {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </button>
-        </div>
-        {mobileOpen && <div className="fixed inset-0 z-50"><button type="button" aria-label="Close admin menu" className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} /><div ref={mobileMenu} id="mobile-admin-menu" role="dialog" aria-modal="true" aria-label="Admin navigation" className="relative h-full w-[min(20rem,85vw)]"><button type="button" aria-label="Close menu" autoFocus onClick={() => setMobileOpen(false)} className="absolute right-3 top-4 z-10 rounded-lg p-2 text-stone-200 hover:bg-white/10"><X className="h-5 w-5" /></button><AdminSidebar onNavigate={() => setMobileOpen(false)} /></div></div>}
+        {mobileOpen && <div className="fixed inset-0 z-50"><button type="button" aria-label="Close admin menu" className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} /><div ref={mobileMenu} id="mobile-admin-menu" role="dialog" aria-modal="true" aria-label="Admin navigation" className="relative h-full w-[min(20rem,85vw)]"><button type="button" aria-label="Close menu" autoFocus onClick={() => setMobileOpen(false)} className="absolute right-3 top-4 z-10 rounded-lg p-2 text-[#796c5c] hover:bg-white/60"><X className="h-5 w-5" /></button><AdminSidebar onNavigate={() => setMobileOpen(false)} /></div></div>}
       </div>
-      <div className="min-w-0">
-        <AdminHeader />
+      <div className="admin-main-column min-w-0">
+        <AdminHeader onOpenMenu={() => setMobileOpen(true)} menuTrigger={mobileTrigger} mobileOpen={mobileOpen} />
         {children}
       </div>
     </div>

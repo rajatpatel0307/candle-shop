@@ -17,4 +17,6 @@ export const listContactSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   status: z.string().trim().max(30).optional(),
+  search: z.string().trim().max(200).optional(),
+  sort: z.enum(['newest', 'oldest']).default('newest'),
 });

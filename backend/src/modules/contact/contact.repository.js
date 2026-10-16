@@ -26,7 +26,20 @@ export async function listMine(userId) {
   return result.recordset;
 }
 
-export async function listAdmin({ page, limit, status }) {
+export async function getAdminSummary() {
+  const pool = await getPool();
+  const result = await pool.request().query(`
+    SELECT COUNT(*) AS total,
+      COALESCE(SUM(CASE WHEN MessageStatus = 'NEW' THEN 1 ELSE 0 END), 0) AS newMessages,
+      COALESCE(SUM(CASE WHEN MessageStatus = 'IN_PROGRESS' THEN 1 ELSE 0 END), 0) AS inProgress,
+      COALESCE(SUM(CASE WHEN MessageStatus = 'RESOLVED' THEN 1 ELSE 0 END), 0) AS resolved,
+      COALESCE(SUM(CASE WHEN MessageStatus = 'CLOSED' THEN 1 ELSE 0 END), 0) AS closed
+    FROM dbo.ContactMessages;
+  `);
+  return result.recordset[0];
+}
+
+export async function listAdmin({ page, limit, status, search, sort }) {
   const pool = await getPool();
   const request = pool.request().input('limit', sql.Int, limit).input('offset', sql.Int, (page - 1) * limit);
   const where = ['1 = 1'];
@@ -34,14 +47,20 @@ export async function listAdmin({ page, limit, status }) {
     request.input('status', sql.VarChar(30), status);
     where.push('MessageStatus = @status');
   }
+  if (search) {
+    request.input('search', sql.NVarChar(802), `%${search.replace(/[~%_\[]/g, '~$&')}%`);
+    where.push("(Name LIKE @search ESCAPE '~' OR Email LIKE @search ESCAPE '~' OR Subject LIKE @search ESCAPE '~' OR Message LIKE @search ESCAPE '~')");
+  }
+  const direction = sort === 'oldest' ? 'ASC' : 'DESC';
   const result = await request.query(`
-    SELECT *, COUNT(1) OVER() AS TotalRows
+    SELECT *
     FROM dbo.ContactMessages
     WHERE ${where.join(' AND ')}
-    ORDER BY CreatedAtUtc DESC
+    ORDER BY CreatedAtUtc ${direction}, ContactMessageId ${direction}
     OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
+    SELECT COUNT(1) AS TotalRows FROM dbo.ContactMessages WHERE ${where.join(' AND ')};
   `);
-  return { rows: result.recordset.map(({ TotalRows, ...row }) => row), total: Number(result.recordset[0]?.TotalRows || 0) };
+  return { rows: result.recordsets[0], total: Number(result.recordsets[1][0]?.TotalRows || 0) };
 }
 
 export async function getMessage(messageId) {

@@ -1,11 +1,10 @@
-export function SalesOverviewChart({ data = [], title = 'Sales overview' }) {
-  const max = Math.max(...data.map((item) => Number(item.Value || 0)), 1);
-  return (
-    <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
-      <h2 className="text-xl font-semibold">{title}</h2>
-      <div className="mt-4 flex h-44 items-end gap-2">
-        {data.map((item) => <div key={String(item.Bucket)} className="flex flex-1 flex-col items-center gap-2"><div className="w-full rounded-t bg-[#b56b45]" style={{ height: `${Math.max(4, (Number(item.Value || 0) / max) * 150)}px` }} /><span className="max-w-16 truncate text-[10px] text-stone-500">{String(item.Bucket).slice(5, 10)}</span></div>)}
-      </div>
-    </section>
-  );
+import { useId } from 'react';
+const short=(value)=>new Intl.NumberFormat('en-IN',{notation:'compact',maximumFractionDigits:1}).format(value);
+const date=(value)=>{const parsed=new Date(value);return Number.isNaN(parsed.getTime()) ? String(value):parsed.toLocaleDateString('en-IN',{day:'numeric',month:'short',timeZone:'UTC'});};
+export function SalesOverviewChart({data=[],title='Sales overview',variant='bar'}){
+ const gradient=useId().replaceAll(':','');
+ const points=data.map((item,index)=>({x:45+(index/Math.max(1,data.length-1))*515,value:Number(item.Value || 0),label:date(item.Bucket)}));const max=Math.max(...points.map((point)=>point.value),1);const y=(value)=>185-value/max*145;
+ const path=points.map((point,index)=>`${index ? 'L':'M'}${point.x},${y(point.value)}`).join(' ');
+ const total=points.reduce((sum,point)=>sum+point.value,0);
+ return <section className="admin-widget"><div className="admin-widget-heading"><div><h2>{title}</h2><p className="mt-2 text-[10px] text-[#89765e]">{variant==='line' ? 'Verified payment revenue':'Orders placed'} in the selected period</p></div><span className="font-serif text-2xl text-[#70583f]">{variant==='line' ? new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(total):short(total)}</span></div>{!points.length ? <p className="admin-widget-empty">No activity in this period. Try another reporting period.</p>:<><svg viewBox="0 0 590 225" className="h-auto w-full" role="img" aria-label={`${title} by day. Total ${total}.`}><defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#a98c62" stopOpacity=".25"/><stop offset="100%" stopColor="#a98c62" stopOpacity=".02"/></linearGradient></defs>{[0,.5,1].map((fraction)=><g key={fraction}><line x1="45" x2="570" y1={y(max*fraction)} y2={y(max*fraction)} stroke="#e9e0d1" strokeDasharray="3 5"/><text x="32" y={y(max*fraction)+4} textAnchor="end" fontSize="9" fill="#89765e">{short(max*fraction)}</text></g>)}{variant==='line' ? <><path d={`${path} L${points.at(-1).x},185 L${points[0].x},185 Z`} fill={`url(#${gradient})`}/><path d={path} fill="none" stroke="#9a7958" strokeWidth="2" strokeLinejoin="round"/>{points.map((point,index)=><circle key={index} cx={point.x} cy={y(point.value)} r={points.length<15 ? 3:1.5} fill="#9a7958"><title>{`${point.label}: ${point.value.toLocaleString('en-IN')}`}</title></circle>)}</>:points.map((point,index)=><rect key={index} x={45+(index/points.length)*520} y={y(point.value)} width={Math.max(2,520/points.length-8)} height={Math.max(0,185-y(point.value))} rx="2" fill={index===points.length-1 ? '#9a7958':'#b5bea1'}><title>{`${point.label}: ${point.value} orders`}</title></rect>)}{points.filter((point,index)=>index===0 || index===points.length-1 || index===Math.floor(points.length/2)).map((point,index)=><text key={index} x={point.x} y="211" textAnchor={index===0 ? 'start':'end'} fontSize="9" fill="#89765e">{point.label}</text>)}</svg><table className="sr-only"><caption>{title} data</caption><thead><tr><th scope="col">Date</th><th scope="col">Value</th></tr></thead><tbody>{points.map((point,index)=><tr key={index}><td>{point.label}</td><td>{point.value}</td></tr>)}</tbody></table></>}</section>;
 }

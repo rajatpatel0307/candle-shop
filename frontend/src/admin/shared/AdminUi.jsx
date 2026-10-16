@@ -1,7 +1,7 @@
 import { AlertCircle, Inbox, RefreshCw } from 'lucide-react';
 
 export function AdminPageHeader({ title, description, actions }) {
-  return <div className="mb-7 flex flex-wrap items-start justify-between gap-4"><div><p className="account-eyebrow mb-2">Candle Studio / Management</p><h1 className="text-3xl font-semibold tracking-tight">{title}</h1>{description && <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-500">{description}</p>}</div>{actions}</div>;
+  return <div className="admin-page-heading mb-8 flex flex-wrap items-end justify-between gap-5"><div><p className="account-eyebrow mb-2">Store management</p><h1 className="text-3xl font-semibold tracking-tight">{title}</h1>{description && <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-500">{description}</p>}</div>{actions}</div>;
 }
 
 export function AdminQueryState({ query, empty = false, emptyText = 'No records found.' }) {

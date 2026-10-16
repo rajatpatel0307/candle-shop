@@ -1,5 +1,3 @@
+import { RefreshCw } from 'lucide-react';
 import { DateRangeFilter } from './DateRangeFilter.jsx';
-
-export function DashboardHeader({ range, onRangeChange }) {
-  return <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-semibold uppercase text-[#697565]">Admin</p><h1 className="text-4xl font-semibold">Dashboard</h1></div><DateRangeFilter value={range} onChange={onRangeChange} /></div>;
-}
+export function DashboardHeader({range,onRangeChange,onRefresh,pending}){return <div className="admin-dashboard-heading"><div><p className="account-eyebrow">Your store, at a glance</p><h1>Store overview.</h1><p className="mt-3 text-xs leading-6 text-[#796c5c]">Orders, revenue, and the details that keep your studio moving.</p></div><div className="admin-dashboard-filters"><label>Reporting period<DateRangeFilter value={range} onChange={onRangeChange}/></label><button type="button" className="icon-btn" aria-label="Refresh dashboard" disabled={pending} onClick={onRefresh}><RefreshCw className={`h-4 w-4 ${pending ? 'animate-spin':''}`}/></button></div></div>;}

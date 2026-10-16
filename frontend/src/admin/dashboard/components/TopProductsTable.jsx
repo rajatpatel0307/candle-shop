@@ -1,5 +1,4 @@
 import { currency } from '../../../features/orders/utils/ordersHelpers.js';
-
-export function TopProductsTable({ products = [] }) {
-  return <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold">Top products</h2><div className="mt-4 space-y-3">{products.map((product) => <div key={`${product.ProductNameSnapshot}-${product.SKU}`} className="flex justify-between gap-3 text-sm"><span className="font-semibold">{product.ProductNameSnapshot}</span><span>{product.UnitsSold} units</span><span>{currency(product.Sales)}</span></div>)}</div></section>;
+export function TopProductsTable({products=[]}) {
+ return <section className="admin-widget"><div className="admin-widget-heading"><div><h2>Customer favourites</h2><p className="mt-2 text-[10px] text-stone-500">Top products from paid orders in this period</p></div></div>{!products.length ? <p className="admin-widget-empty">Your best-selling products will appear as paid orders arrive.</p>:<ol className="admin-widget-list">{products.slice(0,5).map((product,index)=><li key={`${product.ProductNameSnapshot}-${product.SKU}`}><span className="admin-product-rank">{String(index+1).padStart(2,'0')}</span><div className="min-w-0 flex-1"><p className="truncate font-medium">{product.ProductNameSnapshot}</p><p className="mt-1 text-[10px] text-stone-500">{product.UnitsSold} units sold</p></div><span className="whitespace-nowrap">{currency(product.Sales)}</span></li>)}</ol>}</section>;
 }

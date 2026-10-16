@@ -1,3 +1,1 @@
-export function MetricCard({ label, value, sublabel }) {
-  return <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm"><p className="text-sm font-semibold text-stone-500">{label}</p><p className="mt-2 text-2xl font-semibold">{value ?? 0}</p>{sublabel && <p className="mt-1 text-xs text-stone-500">{sublabel}</p>}</section>;
-}
+export function MetricCard({label,value,sublabel,icon:Icon,highlight=false}){return <section className={`admin-metric ${highlight ? 'admin-metric-highlight':''}`}><div className="admin-metric-top"><p>{label}</p>{Icon && <Icon className="h-[17px] w-[17px]" strokeWidth={1.2}/>}</div><p className="admin-metric-value">{value ?? '--'}</p>{sublabel && <p className="admin-metric-note">{sublabel}</p>}</section>;}

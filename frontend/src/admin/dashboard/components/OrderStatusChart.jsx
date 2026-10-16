@@ -1,4 +1,5 @@
-export function OrderStatusChart({ data = [] }) {
-  const total = data.reduce((sum, item) => sum + Number(item.Count || 0), 0) || 1;
-  return <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold">Order statuses</h2><div className="mt-4 space-y-3">{data.map((item) => <div key={item.Status}><div className="flex justify-between text-sm"><span>{item.Status}</span><span>{item.Count}</span></div><div className="mt-1 h-2 rounded bg-stone-100"><div className="h-2 rounded bg-[#697565]" style={{ width: `${(Number(item.Count) / total) * 100}%` }} /></div></div>)}</div></section>;
+export function OrderStatusChart({data=[]}) {
+ const total=data.reduce((sum,item)=>sum+Number(item.Count||0),0);
+ const colors=['#737b57','#bca786','#8b9987','#c69b77','#a89e8e'];
+ return <section className="admin-widget"><div className="admin-widget-heading"><h2>Order breakdown</h2><span className="text-xs text-stone-500">{total} total</span></div>{!total ? <p className="admin-widget-empty">No orders in this reporting period.</p>:<div className="space-y-5">{data.map((item,index)=><div key={item.Status}><div className="mb-2 flex justify-between gap-3 text-[11px]"><span className="capitalize">{item.Status?.replaceAll('_',' ').toLowerCase()}</span><span>{item.Count} <span className="ml-2 text-stone-500">{Math.round(Number(item.Count)/total*100)}%</span></span></div><div className="h-1.5 overflow-hidden rounded-full bg-[#f0e8da]"><div className="h-full rounded-full" style={{width:`${Number(item.Count)/total*100}%`,background:colors[index%colors.length]}}/></div></div>)}</div>}</section>;
 }

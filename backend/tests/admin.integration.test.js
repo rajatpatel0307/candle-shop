@@ -117,9 +117,31 @@ test('admin operations work against the installed SQL schema', { skip: process.e
       await api('get', '/admin/reports/sales', undefined, 403, customer);
     });
     await t.test('messages, ticket status, internal notes and customer notifications persist', async () => {
+        await api('get', '/admin/contact-messages/summary', undefined, 403, customer);
+        const beforeMessages = (await api('get', '/admin/contact-messages/summary')).summary;
       const message = (await api('post', '/contact', { name: 'Test customer', email: `${tag}@example.invalid`, subject: tag, message: 'An isolated admin contact message.' }, 201, customer)).message;
-      await api('patch', `/admin/contact-messages/${message.ContactMessageId}`, { status: 'RESOLVED' });
+        const checkMessageTotals = async (currentKey) => {
+          const summary = (await api('get', '/admin/contact-messages/summary')).summary;
+          assert.equal(summary.total, beforeMessages.total + 1);
+          for (const key of ['newMessages', 'inProgress', 'resolved', 'closed']) {
+            assert.equal(summary[key], beforeMessages[key] + (key === currentKey ? 1 : 0));
+          }
+          assert.equal(summary.total, summary.newMessages + summary.inProgress + summary.resolved + summary.closed);
+        };
+        await checkMessageTotals('newMessages');
+        for (const [status, key] of [['IN_PROGRESS', 'inProgress'], ['CLOSED', 'closed'], ['RESOLVED', 'resolved']]) {
+          await api('patch', `/admin/contact-messages/${message.ContactMessageId}`, { status });
+          await checkMessageTotals(key);
+        }
       assert.equal((await api('get', `/admin/contact-messages/${message.ContactMessageId}`)).message.MessageStatus, 'RESOLVED');
+       const inbox = (await api('get', `/admin/contact-messages?search=${encodeURIComponent(tag)}&status=RESOLVED&sort=oldest&limit=1`)).messages;
+       assert.ok(inbox.items.some((item) => item.ContactMessageId === message.ContactMessageId));
+       assert.equal(inbox.pagination.total, 1);
+       const emptyPage = (await api('get', `/admin/contact-messages?search=${encodeURIComponent(tag)}&status=RESOLVED&page=2&limit=1`)).messages;
+       assert.equal(emptyPage.items.length, 0);
+       assert.equal(emptyPage.pagination.total, 1);
+       assert.equal((await api('get', `/admin/contact-messages?search=${encodeURIComponent(tag)}&status=NEW`)).messages.items.length, 0);
+       assert.equal((await api('get', '/admin/contact-messages?search=%25')).messages.items.some((item) => item.ContactMessageId === message.ContactMessageId), false);
       const ticket = (await api('post', '/support/tickets', { subject: tag, message: 'An isolated admin support question.' }, 201, customer)).ticket;
       await api('patch', `/admin/support/tickets/${ticket.SupportTicketId}`, { status: 'IN_PROGRESS', priority: 'HIGH' });
       await api('post', `/admin/support/tickets/${ticket.SupportTicketId}/messages`, { message: 'Staff-only test note', isInternalNote: true }, 201);

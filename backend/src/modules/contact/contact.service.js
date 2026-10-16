@@ -8,6 +8,9 @@ export async function create(input, userId = null) {
 export async function mine(userId) {
   return repo.listMine(userId);
 }
+export async function getAdminSummary() {
+  return repo.getAdminSummary();
+}
 export async function listAdmin(query) {
   const result = await repo.listAdmin(query);
   return { items: result.rows, pagination: { page: query.page, limit: query.limit, total: result.total } };

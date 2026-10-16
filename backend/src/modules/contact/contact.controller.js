@@ -11,6 +11,9 @@ export async function mine(req, res) {
 export async function listAdmin(req, res) {
   ok(res, 'Contact messages loaded.', { messages: await service.listAdmin(validate(listContactSchema, req.query)) });
 }
+export async function summaryAdmin(req, res) {
+  ok(res, 'Contact message summary loaded.', { summary: await service.getAdminSummary() });
+}
 export async function getAdmin(req, res) {
   const { messageId } = validate(messageIdSchema, req.params);
   ok(res, 'Contact message loaded.', { message: await service.getAdmin(messageId) });
