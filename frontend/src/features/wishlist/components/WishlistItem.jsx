@@ -5,10 +5,10 @@ import { currency, isPurchasable } from '../utils/wishlistHelpers.js';
 export function WishlistItem({ item, actions }) {
   const purchasable = isPurchasable(item);
   return (
-    <article className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">
-      <div className="aspect-[4/3] bg-stone-100">
-        {item.ImageUrl ? <img src={item.ImageUrl} alt={item.ProductName} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><Flame className="h-8 w-8 text-[#b56b45]" /></div>}
-      </div>
+    <article className="customer-wishlist-card overflow-hidden">
+      <Link to={`/products/${item.Slug}`} className="block aspect-[4/5] overflow-hidden bg-[#eee7dd]">
+        {item.ImageUrl ? <img src={item.ImageUrl} alt={item.ProductName} loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><Flame className="h-8 w-8 text-[#b56b45]" /></div>}
+      </Link>
       <div className="grid gap-3 p-4">
         <div>
           <Link className="text-lg font-semibold" to={`/products/${item.Slug}`}>{item.ProductName}</Link>
@@ -19,10 +19,10 @@ export function WishlistItem({ item, actions }) {
           <span className={purchasable ? 'text-sm text-green-700' : 'text-sm text-red-700'}>{purchasable ? 'Available' : 'Unavailable'}</span>
         </div>
         <div className="flex gap-2">
-          <button className="btn-primary flex-1 px-3" disabled={!purchasable || actions.moveToCart.isPending} onClick={() => actions.moveToCart.mutate(item.WishlistItemId)}>
-            <ShoppingBag className="h-4 w-4" /> Move
+          <button className="btn-primary flex-1 px-3" disabled={!purchasable || actions.moveToCart.isPending || actions.remove.isPending} onClick={() => actions.moveToCart.mutate(item.WishlistItemId)}>
+            <ShoppingBag className="h-4 w-4" /> Add to cart
           </button>
-          <button className="icon-btn" disabled={actions.remove.isPending} onClick={() => actions.remove.mutate(item.WishlistItemId)} aria-label="Remove from wishlist">
+          <button className="icon-btn" disabled={actions.remove.isPending || actions.moveToCart.isPending} onClick={() => actions.remove.mutate(item.WishlistItemId)} aria-label="Remove from wishlist">
             <Trash2 className="h-4 w-4" />
           </button>
         </div>

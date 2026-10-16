@@ -1,64 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
-import { Clock3, Headphones, Mail, MapPin } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowUpRight, Package, Headphones, Heart } from 'lucide-react';
 import { contactApi } from '../contact.api.js';
 import { ContactForm } from '../components/ContactForm.jsx';
 import { ContactStatus } from '../components/ContactStatus.jsx';
-
-const contactCards = [
-  { icon: Mail, title: 'Email support', text: 'support@candlestudio.local' },
-  { icon: Clock3, title: 'Response time', text: 'Usually within 1 business day' },
-  { icon: MapPin, title: 'Service area', text: 'Orders and support across India' },
-];
-
-export function ContactUs() {
-  const mutation = useMutation({ mutationFn: contactApi.submit });
-
-  return (
-    <main>
-      <section className="bg-[#efe6d8] px-4 py-14 sm:px-6">
-        <div className="mx-auto max-w-7xl">
-          <p className="text-sm font-semibold uppercase text-[#8d5132]">Contact</p>
-          <h1 className="mt-3 max-w-3xl text-5xl font-semibold leading-tight text-[#2f2722]">We are here to help with orders, gifting, and candle care.</h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-stone-700">
-            Send a message with your question or order details. The support team can help with product choices, delivery, returns, and account questions.
-          </p>
-        </div>
-      </section>
-      <section className="mx-auto grid max-w-7xl gap-6 px-4 py-12 sm:px-6 lg:grid-cols-[0.85fr_1.15fr]">
-        <aside className="space-y-4">
-          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
-            <Headphones className="h-7 w-7 text-[#b56b45]" />
-            <h2 className="mt-4 text-2xl font-semibold">Support details</h2>
-            <p className="mt-2 leading-7 text-stone-600">
-              Include your order number when available so we can find the right record faster.
-            </p>
-          </div>
-          <div className="grid gap-4">
-            {contactCards.map((card) => {
-              const Icon = card.icon;
-              return (
-                <div key={card.title} className="flex gap-3 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-                  <Icon className="mt-1 h-5 w-5 text-[#b56b45]" />
-                  <div>
-                    <h3 className="font-semibold">{card.title}</h3>
-                    <p className="mt-1 text-sm leading-6 text-stone-600">{card.text}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </aside>
-        <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
-          <div className="mb-6">
-            <h2 className="text-2xl font-semibold">Send us a message</h2>
-            <p className="mt-2 text-sm leading-6 text-stone-600">All fields are required.</p>
-          </div>
-          <ContactForm pending={mutation.isPending} success={mutation.isSuccess} onSubmit={(payload) => mutation.mutate(payload)} />
-          <div className="mt-4">
-            <ContactStatus success={mutation.isSuccess} error={mutation.error} />
-          </div>
-        </section>
-      </section>
-    </main>
-  );
-}
+import { CustomerPageHeading } from '../../../shared/components/CustomerUi.jsx';
+export function ContactUs(){const mutation=useMutation({mutationFn:contactApi.submit});return <main className="customer-page-width"><CustomerPageHeading eyebrow="A conversation with the studio" title="We're here for you." description="A question about a piece, a gift, or your latest order? Tell us a little more and we'll help you find your way."/><div className="grid items-start gap-10 lg:grid-cols-[.8fr_1.2fr] lg:gap-20"><aside><img src="/images/home/candle-detail.jpg" alt="A candle creating a warm moment at home" className="mb-7 h-64 w-full object-cover object-center"/><p className="mb-6 text-sm leading-7 text-[#796c5c]">If your question is about an order, include the order number so we can help you with the right details.</p>{[[Package,'Follow your order','See your order details and delivery updates.','/orders'],[Headphones,'Continue a conversation','Find your support messages in your account.','/support/tickets'],[Heart,'Find something lovely','Explore the collection at your own pace.','/shop']].map(([Icon,title,text,to])=><Link key={to} className="flex items-start gap-4 border-t border-[#e4dacd] py-5" to={to}><Icon className="mt-1 h-4 w-4 shrink-0 text-[#9a7958]" strokeWidth={1.3}/><span className="flex-1"><span className="block text-sm">{title}</span><span className="mt-2 block text-xs leading-6 text-[#796c5c]">{text}</span></span><ArrowUpRight className="mt-1 h-3.5 w-3.5"/></Link>)}</aside><section className="customer-panel"><h2 className="text-3xl">Say hello.</h2><p className="mb-7 mt-3 text-xs leading-6 text-[#796c5c]">All fields are required. Tell us a little about how we can help.</p><ContactForm pending={mutation.isPending} success={mutation.isSuccess} onSubmit={(payload)=>mutation.mutate(payload)}/><div className="mt-5"><ContactStatus success={mutation.isSuccess} error={mutation.error}/></div></section></div></main>;}

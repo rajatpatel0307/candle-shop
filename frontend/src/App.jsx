@@ -1,3 +1,5 @@
+import { CatalogPage } from './features/catalog/pages/CatalogPage.jsx';
+import { CollectionsPage } from './features/catalog/pages/CollectionsPage.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -436,7 +438,7 @@ function Shell({ children }) {
   const wishlistCount = isAuthenticated ? Number(wishlist.data?.summary?.totalItems || 0) : 0;
 
   return (
-    <div className={`min-h-screen bg-[#f7f2ea] text-[#2f2722] ${pathname === '/' ? 'home-storefront' : ''}`}>
+    <div className={`customer-ui storefront-shell min-h-screen bg-[#fcf9f2] text-[#43372b] ${pathname === '/' ? 'home-storefront' : ''}`}>
       <header className="sticky top-0 z-30 border-b border-stone-200/80 bg-[#f7f2ea]/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Link to="/" className="flex min-w-fit items-center gap-2 text-lg font-semibold" onClick={() => setMenuOpen(false)}>
@@ -492,8 +494,8 @@ function Shell({ children }) {
           </div>
         </div>
         <div className="mx-auto mt-8 flex max-w-7xl flex-col gap-2 border-t border-stone-300 pt-5 text-xs text-stone-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>Â© {new Date().getFullYear()} Candle Studio. All rights reserved.</p>
-          <p>React, Vite, Express, and Microsoft SQL Server storefront.</p>
+          <p>&copy; {new Date().getFullYear()} Candle Studio. All rights reserved.</p>
+          <p>A little light. A softer moment.</p>
         </div>
       </footer>
     </div>
@@ -575,59 +577,13 @@ function HomePage() {
   );
 }
 
-function ShopPage() {
-  const [params, setParams] = useSearchParams();
-  const search = params.get('search') || '';
-  const category = params.get('category') || '';
-  const query = new URLSearchParams({ ...(search ? { search } : {}), ...(category ? { category } : {}) }).toString();
-  const { data, isError } = useApiQuery(['products', search, category], `${endpoints.products}${query ? `?${query}` : ''}`, fallbackProducts);
-  const products = data?.length ? data : fallbackProducts;
-
-  return (
-    <Shell>
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <div className="mb-8 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-          <div>
-            <p className="text-sm font-semibold uppercase text-[#697565]">Catalog</p>
-            <h1 className="text-4xl font-semibold">Shop candles</h1>
-            {isError && <p className="mt-2 text-sm text-stone-600">Showing sample products until the API is connected.</p>}
-          </div>
-          <label className="flex min-w-72 items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2">
-            <Search className="h-4 w-4 text-stone-500" />
-            <input value={search} onChange={(event) => setParams({ ...(event.target.value ? { search: event.target.value } : {}), ...(category ? { category } : {}) })} className="w-full bg-transparent outline-none" placeholder="Search catalog" />
-          </label>
-        </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((product) => <ProductCard key={product.ProductId} product={product} />)}
-        </div>
-      </main>
-    </Shell>
-  );
-}
+function ShopPage() { return <Shell><CatalogPage /></Shell>; }
 
 function ProductPage() {
   return <Shell><ProductDetailsPage /></Shell>;
 }
 
-function CategoriesPage() {
-  const { data } = useApiQuery(['categories'], endpoints.categories, fallbackCategories);
-  const categories = data?.length ? data : fallbackCategories;
-  return (
-    <Shell>
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <h1 className="text-4xl font-semibold">Categories</h1>
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {categories.map((category) => (
-            <Link key={category.CategoryId || category.Slug} to={`/shop?category=${category.Slug}`} className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
-              <h2 className="text-xl font-semibold">{category.CategoryName}</h2>
-              <p className="mt-2 text-sm leading-6 text-stone-600">{category.Description}</p>
-            </Link>
-          ))}
-        </div>
-      </main>
-    </Shell>
-  );
-}
+function CategoriesPage() { return <Shell><CollectionsPage /></Shell>; }
 
 function SimplePage({ title, children }) {
   return (
@@ -837,24 +793,24 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
-      <Route path="/sessions" element={<CustomerRoute><SessionManagementPage /></CustomerRoute>} />
+      <Route path="/sessions" element={<CustomerRoute><Shell><CustomerAccountLayout><SessionManagementPage /></CustomerAccountLayout></Shell></CustomerRoute>} />
       <Route path="/account" element={<Navigate to="/account/profile" replace />} />
       <Route path="/account/profile" element={<CustomerRoute><Shell><CustomerAccountLayout><ProfilePage /></CustomerAccountLayout></Shell></CustomerRoute>} />
       <Route path="/account/addresses" element={<CustomerRoute><Shell><CustomerAccountLayout><AddressesPage /></CustomerAccountLayout></Shell></CustomerRoute>} />
       <Route path="/addresses" element={<Navigate to="/account/addresses" replace />} />
       <Route path="/account/orders" element={<Navigate to="/orders" replace />} />
-      <Route path="/notifications" element={<CustomerRoute><NotificationsPage /></CustomerRoute>} />
+      <Route path="/notifications" element={<CustomerRoute><Shell><CustomerAccountLayout><NotificationsPage /></CustomerAccountLayout></Shell></CustomerRoute>} />
       <Route path="/account/reviews" element={<CustomerRoute><Shell><CustomerAccountLayout><MyReviews /></CustomerAccountLayout></Shell></CustomerRoute>} />
-      <Route path="/support/tickets" element={<CustomerRoute><MyTickets /></CustomerRoute>} />
-      <Route path="/support/tickets/:ticketId" element={<CustomerRoute><TicketDetails /></CustomerRoute>} />
+      <Route path="/support/tickets" element={<CustomerRoute><Shell><CustomerAccountLayout><MyTickets /></CustomerAccountLayout></Shell></CustomerRoute>} />
+      <Route path="/support/tickets/:ticketId" element={<CustomerRoute><Shell><CustomerAccountLayout><TicketDetails /></CustomerAccountLayout></Shell></CustomerRoute>} />
       <Route path="/cart" element={<CustomerRoute><Shell><CartPage /></Shell></CustomerRoute>} />
       <Route path="/checkout" element={<CustomerRoute><CheckoutPage /></CustomerRoute>} />
-      <Route path="/payments/result" element={<CustomerRoute><PaymentResultPage /></CustomerRoute>} />
-      <Route path="/orders/:orderId/confirmation" element={<CustomerRoute><OrderConfirmationPage /></CustomerRoute>} />
+      <Route path="/payments/result" element={<CustomerRoute><Shell><PaymentResultPage /></Shell></CustomerRoute>} />
+      <Route path="/orders/:orderId/confirmation" element={<CustomerRoute><Shell><OrderConfirmationPage /></Shell></CustomerRoute>} />
       <Route path="/orders" element={<CustomerRoute><Shell><CustomerAccountLayout><OrderHistoryPage /></CustomerAccountLayout></Shell></CustomerRoute>} />
       <Route path="/orders/:orderId" element={<CustomerRoute><Shell><CustomerAccountLayout><OrderDetailsPage /></CustomerAccountLayout></Shell></CustomerRoute>} />
       <Route path="/orders/:orderId/tracking" element={<CustomerRoute><Shell><CustomerAccountLayout><OrderTrackingPage /></CustomerAccountLayout></Shell></CustomerRoute>} />
-      <Route path="/wishlist" element={<CustomerRoute><WishlistPage /></CustomerRoute>} />
+      <Route path="/wishlist" element={<CustomerRoute><Shell><CustomerAccountLayout><WishlistPage /></CustomerAccountLayout></Shell></CustomerRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
       <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
       <Route path="/admin/profile" element={<AdminRoute><AdminProfilePage /></AdminRoute>} />

@@ -18,7 +18,7 @@ export function CartPage() {
   const busy = actions.update.isPending || actions.remove.isPending || actions.clear.isPending;
   const cartActions = { ...actions, isValidating: validation.isPending };
   return (
-    <main className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-10">
+    <main className="customer-cart mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-10">
       <nav aria-label="Breadcrumb" className="mb-7 flex items-center gap-2 text-xs text-stone-400"><Link to="/" className="hover:text-[#8d5132]">Home</Link><ChevronRight className="h-3 w-3" /><span aria-current="page" className="text-stone-600">Shopping cart</span></nav>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
         <div><p className="account-eyebrow">A little warmth, on its way</p><h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Your cart<span className="ml-3 align-middle text-lg font-normal text-stone-400">{query.isSuccess ? `(${summary.totalQuantity})` : ''}</span></h1><p className="mt-3 text-sm text-stone-500">Your next favourite scent is just a few steps away.</p></div>

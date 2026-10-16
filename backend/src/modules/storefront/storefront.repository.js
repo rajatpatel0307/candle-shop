@@ -31,10 +31,12 @@ export async function getHomeData() {
   return { banners: banners.recordset, categories: categories.recordset, featuredProducts: featured.recordset };
 }
 
-export async function listProducts({ search, category, fragrance, minPrice, maxPrice, limit = 24, offset = 0 }) {
+export async function listProducts({ search, category, fragrance, minPrice, maxPrice, sort, limit = 24, offset = 0 }) {
   const pool = await getPool();
   const request = pool.request();
   const where = ['p.ProductStatus = N\'Active\''];
+  const sortOrders = { 'price-asc': 'MIN(v.SellingPrice) ASC, p.ProductName', 'price-desc': 'MIN(v.SellingPrice) DESC, p.ProductName', newest: 'MAX(p.CreatedAtUtc) DESC, p.ProductName', name: 'p.ProductName' };
+  const orderBy = Object.hasOwn(sortOrders, sort) ? sortOrders[sort] : 'p.IsFeatured DESC, p.ProductName';
 
   if (search) {
     request.input('search', sql.NVarChar(300), `%${search}%`);
@@ -74,7 +76,7 @@ export async function listProducts({ search, category, fragrance, minPrice, maxP
     LEFT JOIN dbo.ProductImages i ON i.ProductId = p.ProductId AND i.IsPrimary = 1
     WHERE ${where.join(' AND ')}
     GROUP BY p.ProductId, p.ProductName, p.Slug, p.ShortDescription, p.ProductType, p.IsFeatured, c.CategoryName, c.Slug, b.BrandName
-    ORDER BY p.IsFeatured DESC, p.ProductName
+    ORDER BY ${orderBy}, p.ProductId
     OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
   `);
 

@@ -208,7 +208,7 @@ export function CheckoutPage() {
   const changeStep = (next) => { setStep(next); setSubmitError(null); setValidation(null); };
 
   return (
-    <div className="min-h-screen bg-[#f4f1ec] text-[#2f2722]">
+    <div className="customer-ui customer-checkout min-h-screen bg-[#fcf9f2] text-[#43372b]">
       <header className="border-b border-stone-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
           <Link to="/" className="flex items-center gap-2 font-semibold"><Flame className="h-6 w-6 text-[#b56b45]" />Candle Studio</Link>
@@ -217,7 +217,7 @@ export function CheckoutPage() {
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         <div className="mb-6 flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold sm:text-3xl">Checkout</h1>
+          <div><p className="home-eyebrow mb-2">A little warmth, on its way</p><h1 className="text-3xl sm:text-4xl">Checkout</h1></div>
           <Link to="/cart" className="flex items-center gap-2 text-sm font-medium text-stone-600"><ArrowLeft className="h-4 w-4" />Back to cart</Link>
         </div>
         {loading ? <CheckoutLoading /> : connectionError || !checkout ? (
@@ -263,13 +263,13 @@ export function CheckoutPage() {
                 <PaymentMethodSelector value={paymentMethod} onChange={setPaymentMethod} onlineAvailable={checkout.paymentConfig?.available} />
                 <p className="text-sm leading-6 text-stone-500">{paymentMethod === 'COD' ? 'Confirm your order now and pay on delivery.' : "You'll choose your payment method in the secure payment window."}</p>
                 <CheckoutReview validation={validation} />
-                <button type="button" className="btn-primary w-full sm:w-fit" disabled={busy || (!pendingOrder.current && (!canSubmit || !validation?.isValid)) || (paymentMethod === 'ONLINE' && !checkout.paymentConfig?.available)} onClick={submitOrder}>{busy ? 'Processing...' : paymentMethod === 'COD' ? `Place order · ${currency(pricing?.totalAmount)}` : `Pay ${currency(pricing?.totalAmount)}`}</button>
+                <button type="button" className="btn-primary w-full sm:w-fit" disabled={busy || (!pendingOrder.current && (!canSubmit || !validation?.isValid)) || (paymentMethod === 'ONLINE' && !checkout.paymentConfig?.available)} onClick={submitOrder}>{busy ? 'Processing...' : paymentMethod === 'COD' ? `Place order Ã‚· ${currency(pricing?.totalAmount)}` : `Pay ${currency(pricing?.totalAmount)}`}</button>
               </CheckoutStepPanel>
               <CheckoutErrorMessage error={submitError} />
             </div>
             <aside className="grid gap-4 lg:sticky lg:top-6">
               <PriceBreakdown pricing={pricing} />
-              <p className="flex items-start gap-3 px-3 text-sm leading-6 text-stone-500"><ShieldCheck className="mt-1 h-5 w-5 shrink-0" />Your address and order details are sent securely. Payment is handled by Razorpay.</p>
+              <p className="flex items-start gap-3 px-3 text-sm leading-6 text-stone-500"><ShieldCheck className="mt-1 h-5 w-5 shrink-0" />Review your items, delivery address, and payment method before placing your order.</p>
             </aside>
           </div>
         )}

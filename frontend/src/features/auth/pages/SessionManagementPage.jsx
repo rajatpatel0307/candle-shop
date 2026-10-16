@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AuthLayout } from '../components/AuthLayout.jsx';
+import { CustomerPageHeading } from '../../../shared/components/CustomerUi.jsx';
 import { authApi } from '../api/authApi.js';
 
 function formatUserAgent(userAgent) {
@@ -52,9 +52,9 @@ export function SessionManagementPage() {
   const sessions = data?.data?.sessions || [];
 
   return (
-    <AuthLayout title="Active sessions" subtitle="Review and revoke signed-in devices.">
+    <main><CustomerPageHeading eyebrow="A little peace of mind" title="Account security" description="See where you are signed in and end any sessions you no longer need."/>
       {isLoading && <p className="text-sm text-stone-600">Loading sessions...</p>}
-      {isError && <p className="text-sm text-red-700">Could not load sessions.</p>}
+      {isError && <p role="alert" className="text-sm text-red-700">Could not load sessions.</p>}{revoke.isError && <p role="alert" className="mb-4 text-sm text-red-700">Could not end this session. Please try again.</p>}
       <div className="grid gap-3">
         {sessions.map((session) => {
           const isActive = Boolean(Number(session.IsActive));
@@ -92,6 +92,6 @@ export function SessionManagementPage() {
         })}
         {!isLoading && sessions.length === 0 && <p className="text-sm text-stone-600">No sessions found.</p>}
       </div>
-    </AuthLayout>
+    </main>
   );
 }

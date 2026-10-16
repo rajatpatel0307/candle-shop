@@ -1,24 +1,5 @@
-import { Flame } from 'lucide-react';
+import { ArrowLeft, Flame } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-export function AuthLayout({ title, subtitle, children }) {
-  return (
-    <main className="min-h-screen bg-[#f7f2ea] text-[#2f2722]">
-      <div className="mx-auto grid min-h-screen max-w-6xl lg:grid-cols-[0.9fr_1.1fr]">
-        <section className="hidden bg-stone-900 lg:block">
-          <img src="https://images.unsplash.com/photo-1605651202774-7d573fd3f12d?auto=format&fit=crop&w=1200&q=80" alt="Candle glow" className="h-full w-full object-cover opacity-70" />
-        </section>
-        <section className="flex items-center px-5 py-10 sm:px-10">
-          <div className="w-full max-w-md">
-            <Link to="/" className="mb-10 flex items-center gap-2 text-lg font-semibold">
-              <Flame className="h-5 w-5 text-[#b56b45]" /> Candle Commerce
-            </Link>
-            <h1 className="text-4xl font-semibold">{title}</h1>
-            <p className="mt-3 text-stone-600">{subtitle}</p>
-            <div className="mt-8 rounded-lg border border-stone-200 bg-white p-6 shadow-sm">{children}</div>
-          </div>
-        </section>
-      </div>
-    </main>
-  );
+export function AuthLayout({title,subtitle,children}) {
+ return <main className="customer-ui customer-auth"><section className="customer-auth-image"><img src="/images/home/candle-atmosphere.jpg" alt="A candle bringing a warm glow to a quiet corner"/><Link to="/" className="customer-auth-brand"><Flame className="h-6 w-6" strokeWidth={1.3}/>Candle Studio</Link><div className="customer-auth-story"><p className="home-eyebrow">Your own little ritual</p><h2>A little light.<br/><em>A softer moment.</em></h2><p>A space for your favourites, thoughtful gestures, and the everyday things you love.</p></div></section><section className="customer-auth-form"><Link to="/" className="mb-10 inline-flex items-center gap-2 text-xs text-[#796c5c]"><ArrowLeft className="h-3.5 w-3.5"/>Back to Candle Studio</Link><p className="home-eyebrow">Make yourself at home</p><h1 className="mt-4 text-4xl">{title}</h1><p className="mt-4 text-sm leading-7 text-[#796c5c]">{subtitle}</p><div className="mt-8">{children}</div><p className="mt-10 border-t border-[#e4dacd] pt-5 text-[10px] leading-6 text-[#80715f]">A little light for everyday living. <Link to="/privacy" className="underline underline-offset-4">Privacy policy</Link></p></section></main>;
 }
