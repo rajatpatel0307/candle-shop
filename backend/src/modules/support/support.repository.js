@@ -80,7 +80,7 @@ export async function listMine(userId, { page, limit }) {
   return { rows: result.recordset.map(({ TotalRows, ...row }) => row), total: Number(result.recordset[0]?.TotalRows || 0) };
 }
 
-export async function listAdmin({ page, limit, status }) {
+export async function listAdmin({ page, limit, status, search, priority }) {
   const pool = await getPool();
   const request = pool.request().input('limit', sql.Int, limit).input('offset', sql.Int, (page - 1) * limit);
   const where = ['1 = 1'];
@@ -88,6 +88,11 @@ export async function listAdmin({ page, limit, status }) {
     request.input('status', sql.VarChar(30), status);
     where.push('t.TicketStatus = @status');
   }
+  if (search) {
+    request.input('search', sql.NVarChar(802), `%${search.replace(/[~%_\[]/g, '~$&')}%`);
+    where.push("(t.TicketNumber LIKE @search ESCAPE '~' OR t.Subject LIKE @search ESCAPE '~' OR u.Email LIKE @search ESCAPE '~')");
+  }
+  if (priority) { request.input('priority', sql.VarChar(30), priority); where.push('t.Priority = @priority'); }
   const result = await request.query(`
     SELECT t.*, u.Email, COUNT(1) OVER() AS TotalRows
     FROM dbo.SupportTickets t

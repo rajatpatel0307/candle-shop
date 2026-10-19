@@ -12,6 +12,7 @@ export function useAdminOrder(orderId) {
 export function useAdminOrderActions(orderId) {
   const queryClient = useQueryClient();
   const invalidate = () => {
+    for (const section of ['orders','refunds','shipments']) queryClient.invalidateQueries({ queryKey: ['admin-list-summary',section] });
     queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
     queryClient.invalidateQueries({ queryKey: ['admin-order', orderId] });
     queryClient.invalidateQueries({ queryKey: ['admin-shipments'] });

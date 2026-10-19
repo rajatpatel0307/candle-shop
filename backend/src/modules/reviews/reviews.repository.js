@@ -173,6 +173,10 @@ export async function listAdmin(query) {
     request.input('status', sql.VarChar(30), query.status);
     where.push('r.ReviewStatus = @status');
   }
+  if (query.search) {
+    request.input('search', sql.NVarChar(802), `%${query.search.replace(/[~%_\[]/g, '~$&')}%`);
+    where.push("(r.ReviewTitle LIKE @search ESCAPE '~' OR r.ReviewText LIKE @search ESCAPE '~' OR p.ProductName LIKE @search ESCAPE '~' OR u.Email LIKE @search ESCAPE '~')");
+  }
   const result = await request.query(`
     SELECT r.*, p.ProductName, u.Email, COUNT(1) OVER() AS TotalRows
     FROM dbo.ProductReviews r

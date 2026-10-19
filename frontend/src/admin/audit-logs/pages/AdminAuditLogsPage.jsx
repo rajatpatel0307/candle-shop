@@ -1,9 +1,10 @@
+import { AdminListOverview } from '../../shared/AdminListOverview.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, Search, ShieldCheck, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { auditLogsApi } from '../api/auditLogsApi.js';
 import { AuditLogsTable } from '../components/AuditLogsTable.jsx';
-import { AdminPageHeader, AdminPagination, AdminQueryState } from '../../shared/AdminUi.jsx';
+import { AdminPagination, AdminQueryState } from '../../shared/AdminUi.jsx';
 
 export function AdminAuditLogsPage() {
   const [search, setSearch] = useState('');
@@ -18,13 +19,13 @@ export function AdminAuditLogsPage() {
   const rows = q.data?.items || [];
   let details = detail.data?.DetailsJson;
   try { if (details) details = JSON.stringify(JSON.parse(details), null, 2); } catch { /* Display legacy plain-text details. */ }
-  return <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-    <AdminPageHeader title="Audit logs" description="Track administrative changes, security events, and the people behind each action." actions={<button className="btn-secondary" disabled={q.isFetching} onClick={() => q.refetch()}><RefreshCw className={`h-4 w-4 ${q.isFetching ? 'animate-spin' : ''}`} />Refresh</button>} />
-    <div className="admin-panel mb-5 flex items-center gap-4"><span className="account-icon"><ShieldCheck className="h-5 w-5" /></span><div><p className="text-xl font-semibold">{q.isPending || q.isError ? '--' : q.data?.pagination?.total || 0}</p><p className="text-sm text-stone-500">Events matching your filters</p></div><p className="ml-auto hidden max-w-xs text-right text-xs leading-5 text-stone-500 sm:block">Read-only history. Audit records cannot be edited or removed here.</p></div>
-    <section className="admin-panel mb-5 grid gap-4 md:grid-cols-[1fr_180px_180px]">
+  return <main className="mx-auto max-w-[1500px] px-4 py-10 sm:px-7">
+    <AdminListOverview section="audit-logs" title="Audit logs" pending={q.isFetching} onRefresh={()=>q.refetch()}/>
+    <section className="admin-panel mb-5 grid gap-4 items-end md:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
       <label className="text-xs font-semibold text-stone-500">Search events<div className="relative mt-2"><Search className="absolute left-3 top-3 h-4 w-4" /><input className="input pl-10" type="search" placeholder="Action, entity, or actor email" value={search} onChange={(event) => setSearch(event.target.value)} /></div></label>
       <label className="text-xs font-semibold text-stone-500">Outcome<select className="input mt-2" value={filters.status} onChange={(event) => change('status', event.target.value)}><option value="">All outcomes</option><option value="SUCCESS">Success</option><option value="FAILURE">Failure</option><option value="DENIED">Denied</option></select></label>
       <label className="text-xs font-semibold text-stone-500">Time period<select className="input mt-2" value={filters.range} onChange={(event) => change('range', event.target.value)}><option value="today">Today</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="currentMonth">This month</option><option value="previousMonth">Last month</option></select></label>
+      <button type="button" className="btn-secondary" disabled={!search && !filters.status && filters.range==='last30'} onClick={()=>{setSearch('');setFilters({page:1,search:'',status:'',range:'last30'});}}>Clear filters</button>
     </section>
     <AdminQueryState query={q} empty={!rows.length} emptyText="No events match these filters. Try another search or time period." />
     {!q.isPending && !q.isError && rows.length > 0 && <><AuditLogsTable rows={rows} onSelect={setSelected} /><AdminPagination page={filters.page} limit={25} total={q.data.pagination.total} pending={q.isFetching} onPage={(page) => setFilters((current) => ({ ...current, page }))} /></>}

@@ -1,3 +1,4 @@
+import { AdminTableHeading } from '../../shared/AdminListOverview.jsx';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Flame } from 'lucide-react';
 import { formatNumber, productLabel, stockStatus } from '../utils/inventoryHelpers.js';
@@ -5,6 +6,7 @@ import { formatNumber, productLabel, stockStatus } from '../utils/inventoryHelpe
 export function InventoryTable({ items = [], loading = false }) {
   return (
     <div className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">
+      <AdminTableHeading title="Stock records" count={items.length}/>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[960px] text-left text-sm">
           <thead className="bg-stone-100 text-xs uppercase text-stone-600">

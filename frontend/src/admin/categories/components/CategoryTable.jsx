@@ -1,3 +1,4 @@
+import { AdminTableHeading } from '../../shared/AdminListOverview.jsx';
 import { Edit3, Eye, Power, Trash2 } from 'lucide-react';
 
 function ActiveBadge({ active }) {
@@ -7,6 +8,7 @@ function ActiveBadge({ active }) {
 export function CategoryTable({ rows = [], loading, onEdit, onToggle, onDelete }) {
   return (
     <section className="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm">
+      <AdminTableHeading title="Category directory" count={rows.length}/>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[920px] text-left text-sm">
           <thead className="bg-stone-100 text-xs uppercase text-stone-600">

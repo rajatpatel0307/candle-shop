@@ -1,4 +1,7 @@
-import { Router } from 'express';
+import { Router, raw } from 'express';
+import { uploadImage } from './admin.media.service.js';
+import { getPool, sql } from '../../config/database.js';
+import { getListSummary } from './admin.list-summary.js';
 import * as audit from './admin.audit.service.js';
 import { AppError } from '../../common/errors/AppError.js';
 import { databaseRequestError, databaseSchemaError, databaseUnavailableError, isDatabaseConnectionError, isDatabaseRequestError, isDatabaseSchemaError } from '../../common/errors/databaseErrors.js';
@@ -31,6 +34,22 @@ import { createResource, deleteResource, getResourceById, listResources, updateR
 const router = Router();
 
 router.use(authenticate, requireAdminAccess);
+
+router.get('/product-images/:productId', asyncHandler(async (req,res) => {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.productId)) throw new AppError(400,'INVALID_PRODUCT_ID','Choose a valid product.');
+  const pool=await getPool();
+  const result=await pool.request().input('productId',sql.UniqueIdentifier,req.params.productId).query('SELECT * FROM dbo.ProductImages WHERE ProductId=@productId ORDER BY IsPrimary DESC, DisplayOrder, ProductImageId;');
+  res.json({data:result.recordset});
+}));
+
+router.post('/media/images', raw({ type: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], limit: '5mb' }), asyncHandler(async (req,res) => {
+  const image = await uploadImage(Buffer.isBuffer(req.body) ? {file:req.body,mime:req.get('Content-Type')?.split(';')[0]} : {url:req.body?.url});
+  res.status(201).json({data:{image}});
+}));
+
+router.get('/list-summaries/:section', (req,res,next) => req.params.section === 'settings' ? requireAdminOnly(req,res,next) : next(), asyncHandler(async (req, res) => {
+  res.json({ data: { summary: await getListSummary(req.params.section) } });
+}));
 
 router.get('/dashboard/summary', asyncHandler(dashboardSummary));
 router.get('/dashboard/sales', asyncHandler(dashboardSales));

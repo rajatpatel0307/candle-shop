@@ -32,6 +32,9 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
 }).superRefine((value, ctx) => {
   if (value.DB_DRIVER === 'tedious' && (!value.DB_USER || !value.DB_PASSWORD)) {
     ctx.addIssue({

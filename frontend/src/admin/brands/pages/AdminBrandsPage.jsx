@@ -1,6 +1,8 @@
+import { ImageInput, useImageUploadState } from '../../../shared/components/ImageInput.jsx';
+import { AdminListOverview, AdminSearchField } from '../../shared/AdminListOverview.jsx';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Flame, Plus, RefreshCw, Save, Search, X } from 'lucide-react';
+import { Flame, Plus, Save, X } from 'lucide-react';
 import { adminBrandsApi } from '../api/adminBrandsApi.js';
 import { BrandTable } from '../components/BrandTable.jsx';
 
@@ -11,12 +13,14 @@ function slugify(value) {
 }
 
 function BrandForm({ brand, pending, onCancel, onSubmit }) {
+  const {imageBusy,onImageBusy}=useImageUploadState();
   const [form, setForm] = useState(brand || blankBrand);
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const editing = Boolean(brand?.BrandId);
 
   function submit(event) {
     event.preventDefault();
+    if(imageBusy)return;
     onSubmit({
       BrandName: form.BrandName.trim(),
       Slug: form.Slug.trim(),
@@ -42,9 +46,7 @@ function BrandForm({ brand, pending, onCancel, onSubmit }) {
         <label className="grid gap-1 text-sm font-medium text-stone-700">Slug
           <input className="input" value={form.Slug} onChange={(event) => set('Slug', slugify(event.target.value))} required />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-stone-700 md:col-span-2">Logo URL
-          <input className="input" type="url" value={form.LogoUrl || ''} onChange={(event) => set('LogoUrl', event.target.value)} placeholder="https://..." />
-        </label>
+        <ImageInput className="md:col-span-2" label="Brand logo" value={form.LogoUrl||''} onChange={value=>set('LogoUrl',value)} onBusyChange={busy=>onImageBusy('LogoUrl',busy)} disabled={pending}/>
         <label className="grid gap-1 text-sm font-medium text-stone-700 md:col-span-2">Description
           <textarea className="input min-h-24" value={form.Description || ''} onChange={(event) => set('Description', event.target.value)} />
         </label>
@@ -54,7 +56,7 @@ function BrandForm({ brand, pending, onCancel, onSubmit }) {
         </div>
       </div>
       <div className="mt-5 flex gap-3">
-        <button className="btn-primary" disabled={pending || !form.BrandName || !form.Slug}><Save className="h-4 w-4" />{pending ? 'Saving...' : 'Save brand'}</button>
+        <button className="btn-primary" disabled={pending || imageBusy || !form.BrandName || !form.Slug}><Save className="h-4 w-4" />{pending ? 'Saving...' : 'Save brand'}</button>
         <button className="btn-secondary" type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
@@ -71,7 +73,7 @@ export function AdminBrandsPage() {
   const query = useQuery({ queryKey: ['admin-brands', search], queryFn: async () => (await adminBrandsApi.list({ search, limit: 200 })).data.data });
   const brands = query.data || [];
   const rows = useMemo(() => brands.filter((item) => activeFilter === 'all' || Boolean(item.IsActive) === (activeFilter === 'active')), [brands, activeFilter]);
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-brands'] });
+  const invalidate = () => { queryClient.invalidateQueries({ queryKey: ['admin-brands'] }); queryClient.invalidateQueries({ queryKey: ['admin-list-summary', 'brands'] }); };
   const createMutation = useMutation({ mutationFn: adminBrandsApi.create, onSuccess: () => { invalidate(); setShowForm(false); } });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => adminBrandsApi.update(id, payload), onSuccess: () => { invalidate(); setEditing(null); setShowForm(false); } });
   const deleteMutation = useMutation({ mutationFn: adminBrandsApi.remove, onSuccess: invalidate });
@@ -86,22 +88,14 @@ export function AdminBrandsPage() {
   const pending = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><p className="text-sm font-semibold uppercase text-[#697565]">Catalog</p><h1 className="mt-1 text-4xl font-semibold">Brands</h1><p className="mt-2 text-sm text-stone-600">Manage product makers, logos, descriptions, and storefront visibility.</p></div>
-        <div className="flex gap-2"><button className="btn-secondary" type="button" onClick={() => query.refetch()}><RefreshCw className="h-4 w-4" />Refresh</button><button className="btn-primary" type="button" onClick={() => { setEditing(null); setShowForm(true); }}><Plus className="h-4 w-4" />Add brand</button></div>
-      </div>
-
-      <section className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-sm text-stone-500">Total</p><p className="mt-1 text-2xl font-semibold">{brands.length}</p></div>
-        <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-sm text-stone-500">Active</p><p className="mt-1 text-2xl font-semibold">{brands.filter((item) => item.IsActive).length}</p></div>
-        <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-sm text-stone-500">With logo</p><p className="mt-1 text-2xl font-semibold">{brands.filter((item) => item.LogoUrl).length}</p></div>
-      </section>
+    <main className="mx-auto max-w-[1500px] px-4 py-8 sm:px-7">
+      <AdminListOverview section="brands" title="Brands" pending={query.isFetching} onRefresh={()=>query.refetch()} actions={<button className="btn-primary" type="button" onClick={()=>{setEditing(null);setShowForm(true);}}><Plus className="h-4 w-4"/>Add brand</button>}/>
 
       <div className="mt-6 grid gap-4">
-        <section className="grid gap-3 md:grid-cols-[1fr_13rem]">
-          <label className="flex items-center gap-2 rounded-md border border-stone-300 bg-white px-3 py-2 shadow-sm focus-within:border-[#b56b45] focus-within:ring-2 focus-within:ring-[#b56b45]/20"><Search className="h-4 w-4 text-stone-500" /><input className="w-full bg-transparent text-sm outline-none" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search brands" /></label>
-          <select className="input" value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+        <section className="admin-panel flex flex-wrap items-end gap-4">
+          <AdminSearchField label="Search brands" placeholder="Name or slug" value={search} onChange={setSearch}/>
+          <label className="text-xs font-medium text-stone-500">Status<select aria-label="Brands status" className="input mt-2 sm:w-48" value={activeFilter} onChange={event=>setActiveFilter(event.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
+          <button type="button" className="btn-secondary" disabled={!search && activeFilter==='all'} onClick={()=>{setSearch('');setActiveFilter('all');}}>Clear filters</button>
         </section>
 
         {(showForm || editing) && <BrandForm key={editing?.BrandId || 'new'} brand={editing} pending={pending} onCancel={() => { setEditing(null); setShowForm(false); }} onSubmit={save} />}

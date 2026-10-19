@@ -63,6 +63,39 @@ test('admin operations work against the installed SQL schema', { skip: process.e
       const updated = (await api('patch', `/inventory/${variant.ProductVariantId}/reorder`, { reorderLevel: 3, reorderQuantity: 8 })).item;
       assert.equal(updated.ReorderLevel, 3);
       assert.equal(updated.ReorderQuantity, 8);
+      const image = await api('post', '/admin/resources/product-images', { ProductId: productId, ImageUrl: 'https://res.cloudinary.com/demo/image/upload/sample.jpg', AltText: 'Fixture product image', DisplayOrder: 0, IsPrimary: true }, 201);
+      const images = await api('get', `/admin/product-images/${productId}`);
+      assert.ok(images.some((entry) => entry.ImageUrl === image.ImageUrl));
+      await api('put', `/admin/resources/product-images/${image.ProductImageId}`, { AltText: 'Updated image description' });
+      assert.equal((await api('get', `/admin/product-images/${productId}`))[0].AltText, 'Updated image description');
+      await api('get', `/admin/product-images/${productId}`, undefined, 403, customer);
+      await api('get', '/admin/product-images/invalid', undefined, 400);
+    });
+    await t.test('list summaries use complete database counts and respect admin access', async () => {
+      const support = createAccessToken({ id, roles: ['SUPPORT'] }, randomUUID());
+      for (const [section, table] of Object.entries({ products: 'Products', categories: 'Categories', brands: 'Brands', orders: 'Orders', refunds: 'Refunds', shipments: 'Shipments', 'audit-logs': 'AuditLogs', reviews: 'ProductReviews', tickets: 'SupportTickets', notifications: 'Notifications', banners: 'HomepageBanners', settings: 'StoreSettings' })) {
+        const summary = (await api('get', `/admin/list-summaries/${section}`)).summary;
+        const expected = await pool.request().query(`SELECT COUNT(*) AS total FROM dbo.${table}`);
+        assert.equal(summary.total, expected.recordset[0].total);
+        assert.ok(Object.values(summary).every((value) => Number.isInteger(value) && value >= 0));
+        assert.equal((await api('get', `/admin/list-summaries/${section}?search=does-not-exist&limit=1`)).summary.total, summary.total);
+        await api('get', `/admin/list-summaries/${section}`, undefined, section === 'settings' ? 403 : 200, support);
+        await api('get', `/admin/list-summaries/${section}`, undefined, 403, customer);
+      }
+      const customerSummary = (await api('get', '/admin/list-summaries/customers')).summary;
+      assert.equal(customerSummary.total, customerSummary.active + customerSummary.inactive);
+      assert.ok(customerSummary.verified <= customerSummary.total);
+      const shippingSummary = (await api('get', '/admin/list-summaries/shipping-settings')).summary;
+      assert.ok(shippingSummary.active <= shippingSummary.total);
+      assert.ok(Number.isInteger(shippingSummary.zones) && Number.isInteger(shippingSummary.methods));
+      await api('get', '/admin/list-summaries/toString', undefined, 404);
+      const before = (await api('get', '/admin/list-summaries/products')).summary;
+      await api('put', `/admin/resources/products/${productId}`, { ProductStatus: 'Active' });
+      const after = (await api('get', '/admin/list-summaries/products')).summary;
+      assert.equal(after.total, before.total);
+      assert.equal(after.active, before.active + 1);
+      assert.equal(after.draft, before.draft - 1);
+      await api('put', `/admin/resources/products/${productId}`, { ProductStatus: 'Draft' });
     });
     await t.test('shipping zones, methods and rates can be created, edited and deactivated', async () => {
       zone = (await api('post', '/admin/resources/shipping-zones', { ZoneName: tag, CountryCode: 'IN', IsActive: true }, 201)).ShippingZoneId;
@@ -147,12 +180,19 @@ test('admin operations work against the installed SQL schema', { skip: process.e
       await api('post', `/admin/support/tickets/${ticket.SupportTicketId}/messages`, { message: 'Staff-only test note', isInternalNote: true }, 201);
       const adminView = (await api('get', `/admin/support/tickets/${ticket.SupportTicketId}`)).ticket;
       assert.equal(adminView.ticket.TicketStatus, 'IN_PROGRESS');
+      const ticketSearch = (await api('get', `/admin/support/tickets?search=${encodeURIComponent(tag)}&status=IN_PROGRESS&priority=HIGH`)).tickets;
+      assert.ok(ticketSearch.items.some((item) => item.SupportTicketId === ticket.SupportTicketId));
+      assert.equal((await api('get', `/admin/support/tickets?search=${encodeURIComponent(tag)}&priority=LOW`)).tickets.items.length, 0);
       assert.ok(adminView.messages.some((entry) => entry.IsInternalNote));
       const customerView = (await api('get', `/support/tickets/${ticket.SupportTicketId}`, undefined, 200, customer)).ticket;
       assert.ok(customerView.messages.every((entry) => !entry.IsInternalNote));
       await api('post', '/admin/notifications', { userId: id, title: tag, message: 'Test notification for isolated fixture only.' }, 201);
       const notifications = (await api('get', '/notifications', undefined, 200, customer)).notifications;
       assert.ok(notifications.items.some((entry) => entry.Title === tag));
+      const notificationSearch = (await api('get', `/admin/notifications?search=${encodeURIComponent(tag)}&status=UNREAD`)).notifications;
+      assert.ok(notificationSearch.items.some((entry) => entry.Title === tag));
+      assert.equal((await api('get', `/admin/notifications?search=${encodeURIComponent(tag)}&status=READ`)).notifications.items.length, 0);
+      await api('get', '/admin/reviews?search=does-not-exist&status=APPROVED');
     });
   } finally {
     await pool.request().input('id', sql.UniqueIdentifier, id).input('product', sql.UniqueIdentifier, productId).input('tag', sql.NVarChar(100), tag)
@@ -174,6 +214,7 @@ test('admin operations work against the installed SQL schema', { skip: process.e
       DELETE dbo.SupportTickets WHERE UserId=@id;
       DELETE i FROM dbo.Inventory i JOIN dbo.ProductVariants v ON v.ProductVariantId=i.ProductVariantId WHERE v.ProductId=@product;
       DELETE dbo.ProductVariants WHERE ProductId=@product;
+      DELETE dbo.ProductImages WHERE ProductId=@product;
       DELETE dbo.Products WHERE ProductId=@product;
       DELETE dbo.Categories WHERE Slug=@tag;
       DELETE dbo.Brands WHERE Slug=@tag;

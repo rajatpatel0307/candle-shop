@@ -14,6 +14,7 @@
     "db:migrate:orders-shipping": "node src/scripts/applyOrdersShippingMigrations.js",
     "db:migrate:admin-dashboard": "node src/scripts/applyAdminDashboardMigrations.js",
     "db:migrate:customer-engagement": "node src/scripts/applyCustomerEngagementMigrations.js",
+    "media:migrate:cloudinary": "node src/scripts/migrateImagesToCloudinary.js",
     "db:migrate:instant-reviews": "node src/scripts/publishPendingReviews.js",
     "db:migrate:website-content": "node src/scripts/applyWebsiteContentMigrations.js",
     "test": "node --test",

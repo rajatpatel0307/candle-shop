@@ -1,3 +1,4 @@
+import { ImageInput, useImageUploadState } from './shared/components/ImageInput.jsx';
 import { CatalogPage } from './features/catalog/pages/CatalogPage.jsx';
 import { CollectionsPage } from './features/catalog/pages/CollectionsPage.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -583,6 +584,7 @@ function AdminPage() {
 }
 
 function AdminResourcePage() {
+  const {imageBusy,onImageBusy}=useImageUploadState();
   const { resourceKey } = useParams();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState({});
@@ -613,14 +615,14 @@ function AdminResourcePage() {
         {isError && <p className="mt-3 text-sm text-red-700">Could not load records. Confirm MSSQL and backend env values.</p>}
         <section className="mt-8 rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="text-xl font-semibold">Create record</h2>
-          <form className="mt-4 grid gap-3 md:grid-cols-3" onSubmit={(event) => { event.preventDefault(); mutation.mutate(); }}>
+          <form className="mt-4 grid gap-3 md:grid-cols-3" onSubmit={(event) => { event.preventDefault(); if(!imageBusy)mutation.mutate(); }}>
             {resource.write.map((field) => (
-              <label key={field} className="grid gap-1 text-sm font-medium text-stone-700">
+              <div key={field} className="grid gap-1 text-sm font-medium text-stone-700">
                 {field}
-                <input className="input" value={draft[field] ?? ''} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} />
-              </label>
+                {/imageurl$|logourl$/i.test(field) ? <ImageInput label={field} value={draft[field]||''} onChange={value=>setDraft(current=>({...current,[field]:value}))} onBusyChange={busy=>onImageBusy(field,busy)}/> : <input className="input" value={draft[field] ?? ''} onChange={(event) => setDraft({ ...draft, [field]: event.target.value })} />}
+              </div>
             ))}
-            <button className="btn-primary mt-auto w-fit md:col-span-3" disabled={mutation.isPending}>Create</button>
+            <button className="btn-primary mt-auto w-fit md:col-span-3" disabled={mutation.isPending || imageBusy}>Create</button>
           </form>
         </section>
         <section className="mt-8 overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">

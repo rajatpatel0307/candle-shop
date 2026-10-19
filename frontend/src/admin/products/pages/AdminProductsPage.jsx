@@ -1,6 +1,8 @@
+import { ImageInput, useImageUploadState } from '../../../shared/components/ImageInput.jsx';
+import { AdminListOverview } from '../../shared/AdminListOverview.jsx';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, RefreshCw, Save, X } from 'lucide-react';
+import { Plus, Save, X } from 'lucide-react';
 import { adminProductsApi } from '../api/adminProductsApi.js';
 import { AdminProductTable } from '../components/AdminProductTable.jsx';
 import { ProductFilters } from '../components/ProductFilters.jsx';
@@ -76,12 +78,14 @@ function cleanInventoryPayload(form) {
   };
 }
 
-function ProductForm({ product, variant, inventory, categories = [], brands = [], pending, onCancel, onSubmit }) {
+function ProductForm({ product, variant, inventory, image, categories = [], brands = [], pending, onCancel, onSubmit }) {
+  const {imageBusy,onImageBusy}=useImageUploadState();
   const [form, setForm] = useState({
     ...blankProduct,
     ...(product || {}),
     ...(variant || {}),
     ...(inventory || {}),
+    ImageUrl: image?.ImageUrl || '',
     VariantIsActive: variant ? Boolean(variant.IsActive) : true,
   });
   const editing = Boolean(product?.ProductId);
@@ -89,7 +93,9 @@ function ProductForm({ product, variant, inventory, categories = [], brands = []
 
   function submit(event) {
     event.preventDefault();
+    if(imageBusy)return;
     onSubmit({
+      image: {id:image?.ProductImageId,url:form.ImageUrl,original:image?.ImageUrl||''},
       product: cleanPayload(form),
       variant: cleanVariantPayload(form),
       inventory: cleanInventoryPayload(form),
@@ -212,8 +218,9 @@ function ProductForm({ product, variant, inventory, categories = [], brands = []
         </label>
       </div>
 
+      <ImageInput className="mt-5" label="Product image" value={form.ImageUrl||''} onChange={value=>set('ImageUrl',value)} onBusyChange={busy=>onImageBusy('product',busy)} disabled={pending}/>
       <div className="mt-5 flex flex-wrap gap-3">
-        <button className="btn-primary" disabled={pending || !form.ProductName || !form.Slug || !form.CategoryId || !form.SKU || !form.VariantName || form.SellingPrice === ''}>
+        <button className="btn-primary" disabled={pending || imageBusy || !form.ProductName || !form.Slug || !form.CategoryId || !form.SKU || !form.VariantName || form.SellingPrice === ''}>
           <Save className="h-4 w-4" />
           {pending ? 'Saving...' : 'Save product'}
         </button>
@@ -252,6 +259,7 @@ export function AdminProductsPage() {
     queryFn: async () => (await adminProductsApi.inventory()).data.data,
   });
 
+  const imagesQuery=useQuery({queryKey:['admin-product-images',editing?.ProductId],enabled:Boolean(editing?.ProductId),queryFn:async()=>(await adminProductsApi.images(editing.ProductId)).data.data});
   const products = productsQuery.data || [];
   const filteredProducts = useMemo(() => products.filter((product) => {
     if (status !== 'all' && product.ProductStatus !== status) return false;
@@ -261,6 +269,8 @@ export function AdminProductsPage() {
   }), [products, status, featured]);
 
   const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-list-summary', 'products'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-product-images'] });
     queryClient.invalidateQueries({ queryKey: ['admin-products'] });
     queryClient.invalidateQueries({ queryKey: ['admin-product-variants'] });
     queryClient.invalidateQueries({ queryKey: ['admin-product-inventory'] });
@@ -285,6 +295,12 @@ export function AdminProductsPage() {
         await adminProductsApi.updateInventory(savedVariant.ProductVariantId, inventoryPayload);
       } else {
         await adminProductsApi.createInventory(inventoryPayload);
+      }
+      if(bundle.image.url!==bundle.image.original){
+        if(bundle.image.url){
+          const payload={ProductId:savedProduct.ProductId,ImageUrl:bundle.image.url,AltText:savedProduct.ProductName,DisplayOrder:0,IsPrimary:true};
+          if(bundle.image.id)await adminProductsApi.updateImage(bundle.image.id,payload);else await adminProductsApi.createImage(payload);
+        }else if(bundle.image.id)await adminProductsApi.removeImage(bundle.image.id);
       }
       return savedProduct;
     },
@@ -311,51 +327,21 @@ export function AdminProductsPage() {
   const editingVariant = (variantsQuery.data || []).find((variant) => variant.ProductId === editing?.ProductId);
   const editingInventory = (inventoryQuery.data || []).find((item) => item.ProductVariantId === editingVariant?.ProductVariantId);
   const busy = saveMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
-  const error = productsQuery.error || variantsQuery.error || inventoryQuery.error || saveMutation.error || updateMutation.error || deleteMutation.error;
+  const error = imagesQuery.error || productsQuery.error || variantsQuery.error || inventoryQuery.error || saveMutation.error || updateMutation.error || deleteMutation.error;
   const errorMessage = error?.response?.data?.error?.message || error?.message;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase text-[#697565]">Catalog</p>
-          <h1 className="mt-1 text-4xl font-semibold">Products</h1>
-          <p className="mt-2 max-w-2xl text-sm text-stone-600">Manage product records, storefront status, featured placement, and search visibility.</p>
-        </div>
-        <div className="flex gap-2">
-          <button className="btn-secondary" type="button" onClick={() => productsQuery.refetch()}>
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
-          <button className="btn-primary" type="button" onClick={() => { setEditing(null); setShowForm(true); }}>
-            <Plus className="h-4 w-4" />
-            Add product
-          </button>
-        </div>
-      </div>
-
-      <section className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-stone-500">Total</p>
-          <p className="mt-1 text-2xl font-semibold">{products.length}</p>
-        </div>
-        <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-stone-500">Active</p>
-          <p className="mt-1 text-2xl font-semibold">{products.filter((product) => product.ProductStatus === 'Active').length}</p>
-        </div>
-        <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-stone-500">Featured</p>
-          <p className="mt-1 text-2xl font-semibold">{products.filter((product) => product.IsFeatured).length}</p>
-        </div>
-      </section>
+    <main className="mx-auto max-w-[1500px] px-4 py-8 sm:px-7">
+      <AdminListOverview section="products" title="Products" pending={productsQuery.isFetching} onRefresh={()=>productsQuery.refetch()} actions={<button className="btn-primary" type="button" onClick={()=>{setEditing(null);setShowForm(true);}}><Plus className="h-4 w-4"/>Add product</button>}/>
 
       <div className="mt-6 grid gap-4">
         <ProductFilters search={search} status={status} featured={featured} onSearch={setSearch} onStatus={setStatus} onFeatured={setFeatured} />
 
-        {(showForm || editing) && (
+        {(showForm || editing) && (!editing || imagesQuery.isSuccess) && (
           <ProductForm
             key={`${editing?.ProductId || 'new'}-${editingVariant?.ProductVariantId || 'no-variant'}`}
             product={editing}
+            image={editing ? imagesQuery.data?.[0] : undefined}
             variant={editingVariant}
             inventory={editingInventory}
             categories={categoriesQuery.data || []}
@@ -366,6 +352,8 @@ export function AdminProductsPage() {
           />
         )}
 
+        {editing && imagesQuery.isPending && <p role="status" className="text-sm text-stone-500">Loading product images...</p>}
+        {editing && imagesQuery.isError && <button type="button" className="btn-secondary" onClick={()=>imagesQuery.refetch()}>Retry product images</button>}
         {errorMessage && <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p>}
 
         <AdminProductTable

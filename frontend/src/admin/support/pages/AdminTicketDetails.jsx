@@ -11,7 +11,7 @@ export function AdminTicketDetails() {
   const [message,setMessage] = useState('');
   const [internal,setInternal] = useState(false);
   const q = useQuery({queryKey:['admin-ticket',ticketId],queryFn:async () => (await apiClient.get(`/admin/support/tickets/${ticketId}`)).data.data.ticket});
-  const invalidate = () => {qc.invalidateQueries({queryKey:['admin-ticket',ticketId]});qc.invalidateQueries({queryKey:['admin-support']});};
+  const invalidate = () => {qc.invalidateQueries({queryKey:['admin-list-summary','tickets']});qc.invalidateQueries({queryKey:['admin-ticket',ticketId]});qc.invalidateQueries({queryKey:['admin-support']});};
   const reply = useMutation({mutationFn:(payload) => apiClient.post(`/admin/support/tickets/${ticketId}/messages`,payload),onSuccess:() => {setMessage('');invalidate();}});
   const update = useMutation({mutationFn:(payload) => apiClient.patch(`/admin/support/tickets/${ticketId}`,payload),onSuccess:invalidate});
   const ticket = q.data?.ticket;

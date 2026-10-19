@@ -19,6 +19,8 @@ export const ticketUpdateSchema = z.object({
   assignedToUserId: guid.optional(),
 });
 export const listTicketsSchema = z.object({
+  priority: z.enum(['LOW','NORMAL','HIGH','URGENT','']).optional(),
+  search: z.string().trim().max(200).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   status: z.string().trim().max(30).optional(),

@@ -3,5 +3,5 @@ export function eligibleItems(items = []) {
 }
 
 export function heroImage(slide) {
-  return slide?.desktopImageUrl || slide?.imageUrl || '/images/home/candle-atmosphere.jpg';
+  return slide?.desktopImageUrl || slide?.imageUrl || 'https://res.cloudinary.com/de1smdldp/image/upload/v1792133757/candle-studio/uploads/zysikdkdrcozt9v9ey2b.jpg';
 }

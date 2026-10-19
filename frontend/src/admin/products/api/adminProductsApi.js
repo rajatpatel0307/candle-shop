@@ -1,5 +1,9 @@
 import { apiClient } from '../../../services/apiClient.js';
 export const adminProductsApi = {
+  images: (id) => apiClient.get(`/admin/product-images/${id}`),
+  createImage: (payload) => apiClient.post('/admin/resources/product-images',payload),
+  updateImage: (id,payload) => apiClient.put(`/admin/resources/product-images/${id}`,payload),
+  removeImage: (id) => apiClient.delete(`/admin/resources/product-images/${id}`),
   list: (params) => apiClient.get('/admin/resources/products', { params }),
   categories: () => apiClient.get('/admin/resources/categories', { params: { limit: 200 } }),
   brands: () => apiClient.get('/admin/resources/brands', { params: { limit: 200 } }),

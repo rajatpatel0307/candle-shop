@@ -1,9 +1,11 @@
+import { AdminTableHeading } from '../../shared/AdminListOverview.jsx';
 import { Archive, Edit3, Eye, Star, Trash2 } from 'lucide-react';
 import { ProductStatusControl } from './ProductStatusControl.jsx';
 
 export function AdminProductTable({ products = [], loading, onEdit, onDelete, onStatus, onFeatured }) {
   return (
     <section className="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm">
+      <AdminTableHeading title="Product catalog" count={products.length}/>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead className="bg-stone-100 text-xs uppercase text-stone-600">

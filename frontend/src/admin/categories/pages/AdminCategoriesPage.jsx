@@ -1,6 +1,8 @@
+import { ImageInput, useImageUploadState } from '../../../shared/components/ImageInput.jsx';
+import { AdminListOverview, AdminSearchField } from '../../shared/AdminListOverview.jsx';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Image, Plus, RefreshCw, Save, Search, X } from 'lucide-react';
+import { Image, Plus, Save, X } from 'lucide-react';
 import { adminCategoriesApi } from '../api/adminCategoriesApi.js';
 import { CategoryTable } from '../components/CategoryTable.jsx';
 
@@ -19,6 +21,7 @@ function slugify(value) {
 }
 
 function CategoryForm({ category, categories, pending, onCancel, onSubmit }) {
+  const {imageBusy,onImageBusy}=useImageUploadState();
   const [form, setForm] = useState(category || blankCategory);
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const editing = Boolean(category?.CategoryId);
@@ -26,6 +29,7 @@ function CategoryForm({ category, categories, pending, onCancel, onSubmit }) {
 
   function submit(event) {
     event.preventDefault();
+    if(imageBusy)return;
     onSubmit({
       ParentCategoryId: form.ParentCategoryId || null,
       CategoryName: form.CategoryName.trim(),
@@ -66,9 +70,7 @@ function CategoryForm({ category, categories, pending, onCancel, onSubmit }) {
         <label className="grid gap-1 text-sm font-medium text-stone-700">Display order
           <input className="input" type="number" min="0" value={form.DisplayOrder ?? 0} onChange={(event) => set('DisplayOrder', event.target.value)} />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-stone-700 md:col-span-2">Image URL
-          <input className="input" type="url" value={form.ImageUrl || ''} onChange={(event) => set('ImageUrl', event.target.value)} placeholder="https://..." />
-        </label>
+        <ImageInput className="md:col-span-2" label="Category image" value={form.ImageUrl||''} onChange={value=>set('ImageUrl',value)} onBusyChange={busy=>onImageBusy('ImageUrl',busy)} disabled={pending}/>
         <label className="grid gap-1 text-sm font-medium text-stone-700 md:col-span-2">Description
           <textarea className="input min-h-24" value={form.Description || ''} onChange={(event) => set('Description', event.target.value)} />
         </label>
@@ -82,7 +84,7 @@ function CategoryForm({ category, categories, pending, onCancel, onSubmit }) {
       </div>
 
       <div className="mt-5 flex gap-3">
-        <button className="btn-primary" disabled={pending || !form.CategoryName || !form.Slug}><Save className="h-4 w-4" />{pending ? 'Saving...' : 'Save category'}</button>
+        <button className="btn-primary" disabled={pending || imageBusy || !form.CategoryName || !form.Slug}><Save className="h-4 w-4" />{pending ? 'Saving...' : 'Save category'}</button>
         <button className="btn-secondary" type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
@@ -106,7 +108,7 @@ export function AdminCategoriesPage() {
     .filter((item) => activeFilter === 'all' || Boolean(item.IsActive) === (activeFilter === 'active'))
     .map((item) => ({ ...item, ParentCategoryName: categoryNames[item.ParentCategoryId] })), [categories, activeFilter, categoryNames]);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-categories'] });
+  const invalidate = () => { queryClient.invalidateQueries({ queryKey: ['admin-categories'] }); queryClient.invalidateQueries({ queryKey: ['admin-list-summary', 'categories'] }); };
   const createMutation = useMutation({ mutationFn: adminCategoriesApi.create, onSuccess: () => { invalidate(); setShowForm(false); } });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => adminCategoriesApi.update(id, payload), onSuccess: () => { invalidate(); setEditing(null); setShowForm(false); } });
   const deleteMutation = useMutation({ mutationFn: adminCategoriesApi.remove, onSuccess: invalidate });
@@ -121,31 +123,14 @@ export function AdminCategoriesPage() {
   const pending = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase text-[#697565]">Catalog</p>
-          <h1 className="mt-1 text-4xl font-semibold">Categories</h1>
-          <p className="mt-2 text-sm text-stone-600">Build the storefront hierarchy, control ordering, and manage category visibility.</p>
-        </div>
-        <div className="flex gap-2">
-          <button className="btn-secondary" type="button" onClick={() => query.refetch()}><RefreshCw className="h-4 w-4" />Refresh</button>
-          <button className="btn-primary" type="button" onClick={() => { setEditing(null); setShowForm(true); }}><Plus className="h-4 w-4" />Add category</button>
-        </div>
-      </div>
-
-      <section className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-sm text-stone-500">Total</p><p className="mt-1 text-2xl font-semibold">{categories.length}</p></div>
-        <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-sm text-stone-500">Active</p><p className="mt-1 text-2xl font-semibold">{categories.filter((item) => item.IsActive).length}</p></div>
-        <div className="rounded-md border border-stone-200 bg-white p-4 shadow-sm"><p className="text-sm text-stone-500">Top level</p><p className="mt-1 text-2xl font-semibold">{categories.filter((item) => !item.ParentCategoryId).length}</p></div>
-      </section>
+    <main className="mx-auto max-w-[1500px] px-4 py-8 sm:px-7">
+      <AdminListOverview section="categories" title="Categories" pending={query.isFetching} onRefresh={()=>query.refetch()} actions={<button className="btn-primary" type="button" onClick={()=>{setEditing(null);setShowForm(true);}}><Plus className="h-4 w-4"/>Add category</button>}/>
 
       <div className="mt-6 grid gap-4">
-        <section className="grid gap-3 md:grid-cols-[1fr_13rem]">
-          <label className="flex items-center gap-2 rounded-md border border-stone-300 bg-white px-3 py-2 shadow-sm focus-within:border-[#b56b45] focus-within:ring-2 focus-within:ring-[#b56b45]/20">
-            <Search className="h-4 w-4 text-stone-500" /><input className="w-full bg-transparent text-sm outline-none" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search categories" />
-          </label>
-          <select className="input" value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+        <section className="admin-panel flex flex-wrap items-end gap-4">
+          <AdminSearchField label="Search categories" placeholder="Name or slug" value={search} onChange={setSearch}/>
+          <label className="text-xs font-medium text-stone-500">Status<select aria-label="Categories status" className="input mt-2 sm:w-48" value={activeFilter} onChange={event=>setActiveFilter(event.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
+          <button type="button" className="btn-secondary" disabled={!search && activeFilter==='all'} onClick={()=>{setSearch('');setActiveFilter('all');}}>Clear filters</button>
         </section>
 
         {(showForm || editing) && <CategoryForm key={editing?.CategoryId || 'new'} category={editing} categories={categories} pending={pending} onCancel={() => { setEditing(null); setShowForm(false); }} onSubmit={save} />}

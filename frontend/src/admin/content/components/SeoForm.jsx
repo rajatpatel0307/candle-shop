@@ -1,10 +1,12 @@
+import { ImageInput, useImageUploadState } from '../../../shared/components/ImageInput.jsx';
 import { useState } from 'react';
 
 export function SeoForm({ initial = {}, pending = false, onSubmit }) {
+  const {imageBusy,onImageBusy}=useImageUploadState();
   const [form, setForm] = useState({ entityType: 'PATH', entityId: '', path: '/', metaTitle: '', metaDescription: '', canonicalUrl: '', robotsDirective: 'index,follow', ogTitle: '', ogDescription: '', ogImageUrl: '', ...initial });
-  const set = (key, value) => setForm({ ...form, [key]: value });
+  const set = (key, value) => setForm(current=>({ ...current, [key]: value }));
   return (
-    <form className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm" onSubmit={(event) => { event.preventDefault(); onSubmit({ ...form, entityId: form.entityId || null }); }}>
+    <form className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm" onSubmit={(event) => { event.preventDefault(); if(!imageBusy)onSubmit({ ...form, entityId: form.entityId || null }); }}>
       <h2 className="text-xl font-semibold">SEO metadata</h2>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <select className="input" value={form.entityType} onChange={(e) => set('entityType', e.target.value)}><option>PATH</option><option>PAGE</option><option>PRODUCT</option><option>CATEGORY</option></select>
@@ -15,10 +17,10 @@ export function SeoForm({ initial = {}, pending = false, onSubmit }) {
         <textarea className="input min-h-24 md:col-span-2" value={form.metaDescription} onChange={(e) => set('metaDescription', e.target.value)} placeholder="Meta description" maxLength={170} />
         <input className="input md:col-span-2" value={form.canonicalUrl || ''} onChange={(e) => set('canonicalUrl', e.target.value)} placeholder="Canonical URL" />
         <input className="input" value={form.ogTitle || ''} onChange={(e) => set('ogTitle', e.target.value)} placeholder="OG title" />
-        <input className="input" value={form.ogImageUrl || ''} onChange={(e) => set('ogImageUrl', e.target.value)} placeholder="OG image URL" />
+          <ImageInput className="md:col-span-2" label="Social sharing image" value={form.ogImageUrl||''} onChange={value=>set('ogImageUrl',value)} onBusyChange={busy=>onImageBusy('ogImageUrl',busy)} disabled={pending}/>
         <textarea className="input min-h-20 md:col-span-2" value={form.ogDescription || ''} onChange={(e) => set('ogDescription', e.target.value)} placeholder="OG description" />
       </div>
-      <button className="btn-primary mt-4" disabled={pending || !form.metaTitle || !form.metaDescription}>Save SEO</button>
+      <button className="btn-primary mt-4" disabled={imageBusy || pending || !form.metaTitle || !form.metaDescription}>Save SEO</button>
     </form>
   );
 }

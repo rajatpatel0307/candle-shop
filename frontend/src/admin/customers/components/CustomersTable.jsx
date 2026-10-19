@@ -1,3 +1,4 @@
+import { AdminTableHeading } from '../../shared/AdminListOverview.jsx';
 import { Link } from 'react-router-dom';
 import { CustomerStatusControl } from './CustomerStatusControl.jsx';
 
@@ -14,7 +15,7 @@ export function CustomersTable({ rows = [] }) {
   return (
     <section className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] text-left text-sm">
+        <AdminTableHeading title="Customer accounts" count={rows.length}/><table className="w-full min-w-[860px] text-left text-sm">
           <thead className="bg-stone-100 text-xs uppercase text-stone-600">
             <tr>
               <th className="px-4 py-3">Customer</th>

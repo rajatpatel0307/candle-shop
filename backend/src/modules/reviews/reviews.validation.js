@@ -6,6 +6,7 @@ export const productIdSchema = z.object({ productId: guid });
 export const reviewIdSchema = z.object({ reviewId: guid });
 
 export const listReviewsSchema = z.object({
+  search: z.string().trim().max(200).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   sort: z.enum(['newest', 'oldest', 'highest', 'lowest']).default('newest'),

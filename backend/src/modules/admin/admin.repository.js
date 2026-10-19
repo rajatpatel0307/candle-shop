@@ -258,7 +258,7 @@ export async function insertAuditLog({ userId, action, entityName, entityId, out
     `);
 }
 
-export async function listCustomers({ search, limit = 50, offset = 0 } = {}) {
+export async function listCustomers({ search, status, limit = 50, offset = 0 } = {}) {
   const pool = await getPool();
   const request = pool.request()
     .input('limit', sql.Int, Math.min(Number(limit) || 50, 200))
@@ -278,6 +278,8 @@ export async function listCustomers({ search, limit = 50, offset = 0 } = {}) {
       WHERE sur.UserId = u.UserId AND sr.RoleCode IN (N'ADMIN', N'SUPPORT')
     )`,
   ];
+
+  if (status) { request.input('accountStatus', sql.NVarChar(30), status); where.push(status === 'inactive' ? "u.AccountStatus <> 'Active'" : 'u.AccountStatus = @accountStatus'); }
 
   if (search) {
     request.input('search', sql.NVarChar(300), `%${search}%`);
