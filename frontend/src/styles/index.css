@@ -162,6 +162,7 @@ button, input, select, textarea { font: inherit; }
 .customer-checkout .checkout-step { border-color: #e4dacd; border-radius: 4px; box-shadow: none; }
 .customer-checkout .checkout-step-title { font-family: inherit; letter-spacing: .02em; font-weight: 500; }
 .customer-checkout > main { padding-top: 40px; padding-bottom: 65px; }
+.customer-product-page { overflow-wrap: anywhere; }
 .customer-product-gallery { background: #eee7dd; border-radius: 3px; }
 .customer-product-details > .account-eyebrow { margin-top: 12px; }
 .customer-product-details h1 { font-size: clamp(36px,4vw,54px); }

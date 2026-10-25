@@ -19,16 +19,18 @@ export async function create({ userId, title, message, type = 'INFO', relatedEnt
   return result.recordset[0];
 }
 
-export async function listForUser(userId, { page, limit }) {
+export async function listForUser(userId, { page, limit, status }) {
   const pool = await getPool();
   const result = await pool.request()
     .input('userId', sql.UniqueIdentifier, userId)
+    .input('status', sql.VarChar(6), status || null)
     .input('limit', sql.Int, limit)
     .input('offset', sql.Int, (page - 1) * limit)
     .query(`
       SELECT *, COUNT(1) OVER() AS TotalRows
       FROM dbo.Notifications
       WHERE UserId = @userId AND (ExpiresAtUtc IS NULL OR ExpiresAtUtc > SYSUTCDATETIME())
+        AND (@status IS NULL OR (@status = 'UNREAD' AND ReadAtUtc IS NULL) OR (@status = 'READ' AND ReadAtUtc IS NOT NULL))
       ORDER BY CreatedAtUtc DESC
       OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
     `);
